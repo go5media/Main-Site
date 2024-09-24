@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Gallery - Go5 Media</title>
+    <link rel="stylesheet" href="../styles.css">
+    <style>
+        /* Add styles specific to the gallery */
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .thumbnail {
+            margin: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 150px; /* Limit thumbnail size */
+            height: 100px; /* Limit thumbnail height */
+            object-fit: cover; /* Maintain aspect ratio */
+        }
+
+        .thumbnail:hover {
+            transform: scale(1.05);
+        }
+
+        .full-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            flex-direction: row; /* Place image and info side by side */
+            z-index: 1000;
+        }
+
+        .full-screen img {
+            max-width: 60%;
+            max-height: 80%;
+            margin-right: 20px;
+        }
+
+        .image-info {
+            background: white;
+            color: black;
+            padding: 20px;
+            width: 300px;
+            text-align: left;
+        }
+
+        .nav-arrows {
+            cursor: pointer;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 2rem;
+            user-select: none;
+        }
+
+        .nav-left {
+            left: 10px;
+        }
+
+        .nav-right {
+            right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <img src="../flowers.jpg" alt="Flowers" class="header-image">
+        <h1>Go5 Media</h1>
+        <nav>
+            <a href="../index.html">Home</a>
+            <a href="../about.html">About</a>
+            <a href="../services.html">Services</a>
+            <a href="../portfolio.html">Portfolio</a>
+            <a href="../contact.html">Contact</a>
+            <a href="../view-photos.html">View Photos</a>
+        </nav>
+    </header>
+
+    <!-- Gallery Section -->
+    <section class="gallery">
+        <img src="1.jpg" alt="Image 1" class="thumbnail" onclick="openFullScreen(0)">
+        <img src="2.jpg" alt="Image 2" class="thumbnail" onclick="openFullScreen(1)">
+        <img src="3.jpg" alt="Image 3" class="thumbnail" onclick="openFullScreen(2)">
+        <img src="4.jpg" alt="Image 4" class="thumbnail" onclick="openFullScreen(3)">
+        <img src="5.jpg" alt="Image 5" class="thumbnail" onclick="openFullScreen(4)">
+        <img src="6.jpg" alt="Image 6" class="thumbnail" onclick="openFullScreen(5)">
+        <img src="7.jpg" alt="Image 7" class="thumbnail" onclick="openFullScreen(6)">
+        <img src="8.jpg" alt="Image 8" class="thumbnail" onclick="openFullScreen(7)">
+        <img src="9.jpg" alt="Image 9" class="thumbnail" onclick="openFullScreen(8)">
+        <img src="10.jpg" alt="Image 10" class="thumbnail" onclick="openFullScreen(9)">
+        <img src="11.jpg" alt="Image 11" class="thumbnail" onclick="openFullScreen(10)">
+        <img src="12.jpg" alt="Image 12" class="thumbnail" onclick="openFullScreen(11)">
+        <img src="13.jpg" alt="Image 13" class="thumbnail" onclick="openFullScreen(12)">
+        <img src="14.jpg" alt="Image 14" class="thumbnail" onclick="openFullScreen(13)">
+        <img src="15.jpg" alt="Image 15" class="thumbnail" onclick="openFullScreen(14)">
+        <img src="16.jpg" alt="Image 16" class="thumbnail" onclick="openFullScreen(15)">
+        <img src="17.jpg" alt="Image 17" class="thumbnail" onclick="openFullScreen(16)">
+        <img src="18.jpg" alt="Image 18" class="thumbnail" onclick="openFullScreen(17)">
+        <img src="19.jpg" alt="Image 19" class="thumbnail" onclick="openFullScreen(18)">
+        <img src="20.jpg" alt="Image 20" class="thumbnail" onclick="openFullScreen(19)">
+        <img src="21.jpg" alt="Image 21" class="thumbnail" onclick="openFullScreen(20)">
+        <img src="22.jpg" alt="Image 22" class="thumbnail" onclick="openFullScreen(21)">
+        <img src="23.jpg" alt="Image 23" class="thumbnail" onclick="openFullScreen(22)">
+        <img src="24.jpg" alt="Image 24" class="thumbnail" onclick="openFullScreen(23)">
+        <img src="25.jpg" alt="Image 25" class="thumbnail" onclick="openFullScreen(24)">
+        <img src="26.jpg" alt="Image 26" class="thumbnail" onclick="openFullScreen(25)">
+        <img src="27.jpg" alt="Image 27" class="thumbnail" onclick="openFullScreen(26)">
+        <img src="28.jpg" alt="Image 28" class="thumbnail" onclick="openFullScreen(27)">
+    </section>
+
+    <!-- Full-Screen View -->
+    <div class="full-screen" id="full-screen" onclick="exitFullScreen(event)">
+        <span class="nav-arrows nav-left" onclick="changeImage(-1)">&#10094;</span>
+        <img id="full-image" src="" alt="Full Image">
+        <span class="nav-arrows nav-right" onclick="changeImage(1)">&#10095;</span>
+        <div class="image-info">
+            <h3 id="image-title"></h3>
+            <hr>
+            <p id="image-description"></p>
+            <p>ID: <span id="image-id"></span></p>
+            <p>Date: <span id="image-date"></span></p>
+            <button onclick="downloadImage()">Download</button>
+            <button onclick="buyPrint()">Buy Print</button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2024 Go5 Media. All rights reserved.</p>
+    </footer>
+
+    <script>
+        let currentIndex = 0;
+        const images = [
+            { src: '1.jpg', title: 'Party', description: '', id: 'ID2109240101', date: '21-09-2024 16:26:24' },
+            { src: '2.jpg', title: 'Party', description: '', id: 'ID2109240102', date: '21-09-2024 16:30:20' },
+            { src: '3.jpg', title: 'Party', description: '', id: 'ID2109240103', date: '21-09-2024 16:30:43' },
+            { src: '4.jpg', title: 'Party', description: '', id: 'ID2109240104', date: '21-09-2024 16:30:47' },
+            { src: '5.jpg', title: 'Party', description: '', id: 'ID2109240105', date: '21-09-2024 17:37:43' },
+            { src: '6.jpg', title: 'Party', description: '', id: 'ID2109240106', date: '21-09-2024 19:07:04' },
+            { src: '7.jpg', title: 'Party', description: '', id: 'ID2109240107', date: '21-09-2024 19:10:03' },
+            { src: '8.jpg', title: 'Party', description: '', id: 'ID2109240108', date: '21-09-2024 16:26:24' },
+            { src: '9.jpg', title: 'Party', description: '', id: 'ID2109240109', date: '21-09-2024 16:30:20' },
+            { src: '10.jpg', title: 'Party', description: '', id: 'ID2109240110', date: '21-09-2024 16:30:43' },
+            { src: '11.jpg', title: 'Party', description: '', id: 'ID2109240111', date: '21-09-2024 16:30:47' },
+            { src: '12.jpg', title: 'Party', description: '', id: 'ID2109240112', date: '21-09-2024 17:37:43' },
+            { src: '13.jpg', title: 'Party', description: '', id: 'ID2109240113', date: '21-09-2024 19:07:04' },
+            { src: '14.jpg', title: 'Party', description: '', id: 'ID2109240114', date: '21-09-2024 19:10:03' },
+            { src: '15.jpg', title: 'Party', description: '', id: 'ID2109240115', date: '21-09-2024 16:26:24' },
+            { src: '16.jpg', title: 'Party', description: '', id: 'ID2109240116', date: '21-09-2024 16:30:20' },
+            { src: '17.jpg', title: 'Party', description: '', id: 'ID2109240117', date: '21-09-2024 16:30:43' },
+            { src: '18.jpg', title: 'Party', description: '', id: 'ID2109240118', date: '21-09-2024 16:30:47' },
+            { src: '19.jpg', title: 'Party', description: '', id: 'ID2109240119', date: '21-09-2024 17:37:43' },
+            { src: '20.jpg', title: 'Party', description: '', id: 'ID2109240120', date: '21-09-2024 19:07:04' },
+            { src: '21.jpg', title: 'Party', description: '', id: 'ID2109240121', date: '21-09-2024 19:10:03' },
+            { src: '22.jpg', title: 'Party', description: '', id: 'ID2109240122', date: '21-09-2024 16:26:24' },
+            { src: '23.jpg', title: 'Party', description: '', id: 'ID2109240123', date: '21-09-2024 16:30:20' },
+            { src: '24.jpg', title: 'Party', description: '', id: 'ID2109240124', date: '21-09-2024 16:30:43' },
+            { src: '25.jpg', title: 'Party', description: '', id: 'ID2109240125', date: '21-09-2024 16:30:47' },
+            { src: '26.jpg', title: 'Party', description: '', id: 'ID2109240126', date: '21-09-2024 17:37:43' },
+            { src: '27.jpg', title: 'Party', description: '', id: 'ID2109240127', date: '21-09-2024 19:07:04' },
+            { src: '28.jpg', title: 'Party', description: '', id: 'ID2109240128', date: '21-09-2024 19:10:03' }
+        ];
+
+        function openFullScreen(index) {
+            currentIndex = index;
+            const image = images[currentIndex];
+            document.getElementById('full-image').src = image.src;
+            document.getElementById('image-title').innerText = image.title;
+            document.getElementById('image-description').innerText = image.description;
+            document.getElementById('image-id').innerText = image.id;
+            document.getElementById('image-date').innerText = image.date;
+
+            document.getElementById('full-screen').style.display = 'flex';
+        }
+
+        function changeImage(direction) {
+            currentIndex += direction;
+            if (currentIndex < 0) {
+                currentIndex = images.length - 1;
+            } else if (currentIndex >= images.length) {
+                document.getElementById('full-screen').style.display = 'none';
+                return;
+            }
+            openFullScreen(currentIndex);
+        }
+
+        function downloadImage() {
+            const image = images[currentIndex];
+            window.location.href = image.src; // Download image functionality
+        }
+
+        function buyPrint() {
+            window.location.href = "https://buy.stripe.com/9AQ02U9Hd7bHgEg3cc"; // Change to your actual print buy URL
+        }
+
+        function exitFullScreen(event) {
+            if (event.target.id === 'full-screen') {
+                document.getElementById('full-screen').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
