@@ -1,0 +1,488 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Announcement Player (Voice Packs)</title>
+
+    <style>
+        /* Basic page styling */
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background-color: #f4f4f4;
+            max-width: 800px;
+            margin: 15px auto;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Button styling */
+        button {
+            display: block;
+            margin: 25px auto;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #4cae4c;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        /* Status display box */
+        #status {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-align: center;
+            word-wrap: break-word;
+        }
+
+        #status p {
+            margin: 8px 0;
+        }
+
+        #status span {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        /* Note box styling */
+         .important-note {
+             background-color: #fff3cd;
+             border: 1px solid #ffeeba;
+             color: #856404;
+             padding: 15px;
+             margin: 20px 0;
+             border-radius: 5px;
+             text-align: center;
+        }
+
+        /* Styles for control sections */
+        .controls {
+            background-color: #eee;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 25px;
+        }
+         .controls h2 {
+             margin-top: 0;
+             margin-bottom: 15px;
+             font-size: 1.2em;
+             color: #333;
+             border-bottom: 1px solid #ccc;
+             padding-bottom: 10px;
+         }
+
+        .control-group {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #ccc;
+        }
+        .control-group:last-child { /* No border for last group in a section */
+             border-bottom: none;
+             margin-bottom: 0;
+             padding-bottom: 5px; /* Reduce padding slightly */
+        }
+
+
+        .control-group h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            color: #555;
+        }
+
+        .control-group label, .voice-control label {
+            display: inline-block;
+            margin-right: 5px;
+            margin-bottom: 10px;
+            min-width: 80px; /* Adjust as needed */
+            vertical-align: middle;
+        }
+
+         .control-group select, .voice-control select {
+             padding: 6px 8px;
+             min-width: 120px;
+             margin-right: 20px;
+             vertical-align: middle;
+             border: 1px solid #ccc;
+             border-radius: 4px;
+             margin-bottom: 10px; /* Ensure space below selects */
+         }
+         .voice-control { /* Specific styling for voice controls */
+             margin-bottom: 15px;
+         }
+         .voice-control label {
+             min-width: 110px; /* Wider label for voice controls */
+         }
+    </style>
+</head>
+<body>
+
+    <h1>Announcement Player</h1>
+
+     <div class="important-note">
+        <strong>Note:</strong> This version runs directly from local files. Small pauses between recordings may still occur. Use the controls below to select voice packs and specific names. Audio files must be in subdirectories named '1' and '2'.
+    </div>
+
+    <div class="controls">
+        <h2>Voice Pack Selection</h2>
+        <div class="voice-control">
+             <label for="masterVoice">Master Voice:</label>
+             <select id="masterVoice">
+                 <option value="1" selected>Voice Pack 1</option>
+                 <option value="2">Voice Pack 2</option>
+             </select>
+        </div>
+        <div class="voice-control">
+             <label for="rVoice">R Recordings Voice:</label>
+             <select id="rVoice">
+                 <option value="Master" selected>Use Master Voice</option>
+                 <option value="1">Voice Pack 1</option>
+                 <option value="2">Voice Pack 2</option>
+             </select>
+        </div>
+         <div class="voice-control">
+            <label for="nVoice">N Recordings Voice:</label>
+            <select id="nVoice">
+                <option value="Master" selected>Use Master Voice</option>
+                <option value="1">Voice Pack 1</option>
+                <option value="2">Voice Pack 2</option>
+            </select>
+        </div>
+    </div>
+    <div class="controls">
+         <h2>Name Selection</h2>
+        <div class="control-group">
+            <h3>Legal Name Pair</h3>
+            <label for="legalFirst">First Name:</label>
+            <select id="legalFirst"></select>
+
+            <label for="legalLast">Last Name:</label>
+            <select id="legalLast"></select>
+        </div>
+        <div class="control-group">
+            <h3>New Name Pair</h3>
+            <label for="newFirst">First Name:</label>
+            <select id="newFirst"></select>
+
+            <label for="newLast">Last Name:</label>
+            <select id="newLast"></select>
+        </div>
+    </div>
+    <button id="playButton">Play Announcement</button>
+
+    <div id="status">
+        <p>Configure voices/names above and click the button to play.</p>
+        <p><strong>Chosen Name Pairs:</strong> <span id="selectedNames"></span></p>
+        <p><strong>Currently Playing:</strong> <span id="currentTrack">Idle</span></p>
+    </div>
+
+    <audio id="playerA" preload="auto"></audio>
+    <audio id="playerB" preload="auto"></audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Get UI Elements ---
+            const playButton = document.getElementById('playButton');
+            const statusSelectedNames = document.getElementById('selectedNames');
+            const statusCurrentTrack = document.getElementById('currentTrack');
+            const playerA = document.getElementById('playerA');
+            const playerB = document.getElementById('playerB');
+            // Voice selectors
+            const masterVoiceSelect = document.getElementById('masterVoice');
+            const rVoiceSelect = document.getElementById('rVoice');
+            const nVoiceSelect = document.getElementById('nVoice');
+            // Name selectors
+            const legalFirstSelect = document.getElementById('legalFirst');
+            const legalLastSelect = document.getElementById('legalLast');
+            const newFirstSelect = document.getElementById('newFirst');
+            const newLastSelect = document.getElementById('newLast');
+            const nameSelects = [legalFirstSelect, legalLastSelect, newFirstSelect, newLastSelect];
+            // --- End UI Elements ---
+
+            // --- Base Audio File Definitions (NO PATHS) ---
+            const recordingsBase = { // Just the base filenames
+                r1: `R1.mp3`, r2: `R2.mp3`, r3: `R3.mp3`, r4: `R4.mp3`,
+                r5: `R5.mp3`, r6: `R6.mp3`, r7: `R7.mp3`,
+            };
+            // Generate list of base N*.mp3 file names
+            const allNameBaseFiles = [];
+            for (let i = 1; i <= 10; i++) {
+                allNameBaseFiles.push(`N${i}.mp3`); // Store base names like "N1.mp3"
+            }
+            // --- End Base Audio File Definitions ---
+
+            // --- Populate Name Dropdowns (using base names) ---
+            function populateNameDropdowns() {
+                nameSelects.forEach(select => {
+                    select.innerHTML = ''; // Clear existing options
+                    const randomOption = document.createElement('option');
+                    randomOption.value = 'Random';
+                    randomOption.textContent = 'Random';
+                    randomOption.selected = true;
+                    select.appendChild(randomOption);
+
+                    // Add N1 to N10 options using base names
+                    allNameBaseFiles.forEach(baseName => {
+                        const option = document.createElement('option');
+                        option.value = baseName; // Use base name like "N1.mp3" for value
+                        option.textContent = baseName; // Display base name
+                        select.appendChild(option);
+                    });
+                });
+            }
+            populateNameDropdowns(); // Fill name dropdowns when page loads
+            // --- End Populate Name Dropdowns ---
+
+            // --- State Variables ---
+            let fileQueue = []; // Holds the full paths for current playback
+            let currentTrackIndex = -1;
+            let activePlayerElement = null;
+            let isPlaying = false;
+            // --- End State Variables ---
+
+            /**
+             * Selects unique random BASE filenames.
+             */
+            function getRandomUniqueItems(array, count) {
+                 if (count > array.length) { console.error("Not enough unique items..."); return []; }
+                 if (count <= 0) return [];
+                const shuffled = [...array].sort(() => 0.5 - Math.random());
+                return shuffled.slice(0, count);
+            }
+
+             /**
+              * Gets the correct full path for a file based on voice selections.
+              * @param {string} type - 'R' for R recordings, 'N' for N recordings.
+              * @param {string} baseName - The base filename (e.g., "R1.mp3", "N5.mp3").
+              * @returns {string} The full path (e.g., "1/R1.mp3", "2/N5.mp3").
+              */
+             function getFilePath(type, baseName) {
+                const masterPrefix = masterVoiceSelect.value + '/'; // e.g., "1/"
+                const rPrefixValue = rVoiceSelect.value; // "Master", "1", or "2"
+                const nPrefixValue = nVoiceSelect.value; // "Master", "1", or "2"
+
+                let finalPrefix = masterPrefix; // Default to master
+
+                if (type === 'R' && rPrefixValue !== 'Master') {
+                    finalPrefix = rPrefixValue + '/';
+                } else if (type === 'N' && nPrefixValue !== 'Master') {
+                    finalPrefix = nPrefixValue + '/';
+                }
+                // If type is R and rPrefix is Master, or type is N and nPrefix is Master,
+                // it correctly uses the masterPrefix defined above.
+
+                return finalPrefix + baseName;
+             }
+
+             // --- Stop and Reset Function ---
+             function resetPlayback(finishedNaturally = false) {
+                 // (Same resetPlayback function as previous version - no changes needed here)
+                 console.log(`Resetting playback. Finished naturally: ${finishedNaturally}`);
+                 isPlaying = false;
+                 playButton.disabled = false;
+                 activePlayerElement = null;
+                 currentTrackIndex = -1;
+                 fileQueue = [];
+                 try { if (!playerA.paused) playerA.pause(); playerA.removeAttribute('src'); playerA.load(); console.log("Player A reset."); } catch(e){ console.warn("Error resetting player A", e); }
+                 try { if (!playerB.paused) playerB.pause(); playerB.removeAttribute('src'); playerB.load(); console.log("Player B reset."); } catch(e){ console.warn("Error resetting player B", e); }
+                 if (finishedNaturally) { statusCurrentTrack.textContent = "Finished."; }
+                 else if (statusCurrentTrack.textContent !== 'Idle' && !statusCurrentTrack.textContent.startsWith("Error")) { statusCurrentTrack.textContent = "Idle"; }
+             }
+             // --- End Stop and Reset Function ---
+
+
+            // --- Core Playback Logic (Uses full paths from fileQueue) ---
+             function playNextTrack() {
+                // (Same playNextTrack function as previous version - no changes needed here)
+                 currentTrackIndex++;
+                 console.log(`Attempting to play track index: ${currentTrackIndex}`);
+                 if (currentTrackIndex >= fileQueue.length) { console.log("Reached end of queue."); resetPlayback(true); return; }
+
+                 let playerToPlayNow = (activePlayerElement === playerA) ? playerB : playerA;
+                 let playerToPreload = (activePlayerElement === playerA) ? playerA : playerB;
+                 const fileToPlay = fileQueue[currentTrackIndex];
+                 if (!fileToPlay) { console.error(`Error: File path at index ${currentTrackIndex} is invalid.`); handleError(new Error(`Invalid file path at index ${currentTrackIndex}`), playerToPlayNow === playerA ? 'A' : 'B'); return; }
+                 const shortNameToPlay = fileToPlay.split('/').pop();
+
+                 const preloadTrackIndex = currentTrackIndex + 1;
+                 if (preloadTrackIndex < fileQueue.length) {
+                     const fileToPreload = fileQueue[preloadTrackIndex];
+                     if (fileToPreload) {
+                         const shortPreloadName = fileToPreload.split('/').pop();
+                         console.log(`Preloading index ${preloadTrackIndex} (${shortPreloadName}) on player ${playerToPreload === playerA ? 'A' : 'B'}`);
+                         playerToPreload.src = fileToPreload; playerToPreload.load();
+                     } else {
+                         console.warn(`File path at preload index ${preloadTrackIndex} is invalid. Cannot preload.`);
+                         try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) { console.warn("Error clearing preload player src", e); }
+                     }
+                 } else {
+                     console.log(`No track to preload on player ${playerToPreload === playerA ? 'A' : 'B'}, clearing src.`);
+                     try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) { console.warn("Error clearing preload player src", e); }
+                 }
+
+                 console.log(`Playing index ${currentTrackIndex} (${shortNameToPlay}) on player ${playerToPlayNow === playerA ? 'A' : 'B'}`);
+                 statusCurrentTrack.textContent = shortNameToPlay;
+                 activePlayerElement = playerToPlayNow;
+                 activePlayerElement.play().catch(e => { console.error(`Error playing ${shortNameToPlay}:`, e); handleError(e, activePlayerElement === playerA ? 'A' : 'B'); });
+             }
+
+             function handleTrackEnd(event) {
+                // (Same handleTrackEnd function as previous version - no changes needed here)
+                 if (event.target === activePlayerElement) {
+                     const playerName = (event.target === playerA) ? 'A' : 'B';
+                     console.log(`Player ${playerName} ended (Track Index: ${currentTrackIndex}).`);
+                     try { event.target.pause(); console.log(`Player ${playerName} explicitly paused.`); }
+                     catch (e) { console.warn(`Could not pause player ${playerName}`, e); }
+                     playNextTrack();
+                 } else {
+                     const inactivePlayerName = (event.target === playerA) ? 'A' : 'B';
+                     const activePlayerName = activePlayerElement ? (activePlayerElement === playerA ? 'A' : 'B') : 'None';
+                     console.warn(`'ended' event ignored for inactive player ${inactivePlayerName}. Current active: ${activePlayerName}`);
+                 }
+            }
+            playerA.addEventListener('ended', handleTrackEnd);
+            playerB.addEventListener('ended', handleTrackEnd);
+
+             function handleError(errorEvent, playerName) {
+                // (Same handleError function as previous version - no changes needed here)
+                 console.error(`Audio Error Event on Player ${playerName}:`, errorEvent);
+                 let specificError = 'Unknown playback error';
+                 if (errorEvent && errorEvent.target && errorEvent.target.error) {
+                     const mediaError = errorEvent.target.error;
+                     switch (mediaError.code) { /* ... error codes ... */
+                         case mediaError.MEDIA_ERR_ABORTED: specificError = 'Playback aborted.'; break;
+                         case mediaError.MEDIA_ERR_NETWORK: specificError = 'Network error loading audio.'; break;
+                         case mediaError.MEDIA_ERR_DECODE: specificError = 'Audio decoding error (file might be corrupt).'; break;
+                         case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: specificError = 'Audio source not supported or not found.'; break;
+                         default: specificError = `Unknown error code ${mediaError.code}.`;
+                     }
+                     console.error(`MediaError code: ${mediaError.code}, message: ${mediaError.message || '(no message)'}`);
+                 } else if (errorEvent instanceof Error) { specificError = errorEvent.message; }
+                 const errorIndex = (currentTrackIndex >= 0) ? currentTrackIndex : 0;
+                 const fileWithError = fileQueue[errorIndex] || 'Current/Starting file';
+                 statusCurrentTrack.textContent = `Error on ${fileWithError.split('/').pop()}: ${specificError} Resetting.`;
+                 resetPlayback();
+             }
+             playerA.addEventListener('error', (e) => handleError(e, 'A'));
+             playerB.addEventListener('error', (e) => handleError(e, 'B'));
+            // --- End Playback Logic ---
+
+
+            // --- Event Listener for the Play Button (MODIFIED FOR VOICE PACKS) ---
+            playButton.addEventListener('click', () => {
+                if (isPlaying) { console.warn("Already playing..."); resetPlayback(); }
+                resetPlayback();
+                isPlaying = true;
+                playButton.disabled = true;
+                statusCurrentTrack.textContent = 'Processing selections...';
+                statusSelectedNames.textContent = '...';
+
+                // --- 1. Determine Required BASE Name Files ---
+                const nameSelections = nameSelects.map(s => s.value); // Values are "Random" or "N*.mp3"
+                const finalBaseNameFiles = []; // Will hold BASE names like "N3.mp3"
+
+                const manualBaseNameSelections = nameSelections.filter(val => val !== 'Random');
+                const neededRandomCount = nameSelections.filter(val => val === 'Random').length;
+                console.log("Manual Base Name Selections:", manualBaseNameSelections);
+
+                // Determine available files for random selection (using BASE names)
+                const uniqueManualBaseNames = [...new Set(manualBaseNameSelections)];
+                let availableForRandom = [...allNameBaseFiles]; // Use list of base names
+                uniqueManualBaseNames.forEach(manualBaseName => {
+                    availableForRandom = availableForRandom.filter(f => f !== manualBaseName);
+                });
+                console.log("Base names available for random selection:", availableForRandom);
+
+                if (neededRandomCount > availableForRandom.length) {
+                     console.error("Not enough unique base names for random selection.");
+                     statusCurrentTrack.textContent = `Error: Not enough unique names available (${availableForRandom.length}) for ${neededRandomCount} random selections.`;
+                     resetPlayback(); return;
+                }
+                // Select random BASE names (these will be unique among themselves)
+                const randomSelections = getRandomUniqueItems(availableForRandom, neededRandomCount);
+                console.log("Random base names selected:", randomSelections);
+                let randomCounter = 0;
+
+                // Build the final list of 4 BASE name files
+                for (const selection of nameSelections) {
+                    finalBaseNameFiles.push(selection === 'Random' ? randomSelections[randomCounter++] : selection);
+                }
+                console.log("Final base name files chosen for slots:", finalBaseNameFiles);
+
+                const legalBaseName1 = finalBaseNameFiles[0];
+                const legalBaseName2 = finalBaseNameFiles[1];
+                const newBaseName1 = finalBaseNameFiles[2];
+                const newBaseName2 = finalBaseNameFiles[3];
+                // --- End Determine Required BASE Name Files ---
+
+
+                // Update status display with chosen BASE names
+                statusSelectedNames.textContent = `Legal: (${legalBaseName1} + ${legalBaseName2}), New: (${newBaseName1} + ${newBaseName2})`;
+
+                // --- 2. Construct the FULL PATH playback queue using getFilePath ---
+                 fileQueue = [
+                    getFilePath('R', recordingsBase.r1), getFilePath('R', recordingsBase.r2), getFilePath('R', recordingsBase.r3),
+                    getFilePath('N', legalBaseName1), getFilePath('N', legalBaseName2),             // Legal Pair 1
+                    getFilePath('R', recordingsBase.r4),
+                    getFilePath('N', newBaseName1), getFilePath('N', newBaseName2),                 // New Pair 1
+                    getFilePath('R', recordingsBase.r5),
+                    getFilePath('N', newBaseName1), getFilePath('N', newBaseName2),                 // New Pair 2 (Repeat)
+                    getFilePath('R', recordingsBase.r6),
+                    getFilePath('N', legalBaseName1), getFilePath('N', legalBaseName2),             // Legal Pair 2 (Repeat)
+                    getFilePath('R', recordingsBase.r7)
+                ];
+                currentTrackIndex = -1; // Reset index
+
+                console.log('Constructed FULL PATH File Queue:', fileQueue); // Log full paths now
+
+                // --- 3. Start Playback Sequence ---
+                if (fileQueue.length > 0) {
+                    statusCurrentTrack.textContent = `Starting...`;
+                    const firstFile = fileQueue[0]; // Should be full path e.g., "1/R1.mp3"
+                    if (firstFile) {
+                        playerA.src = firstFile;
+                        playerA.load();
+                        console.log(`Initial load (Track 0): ${firstFile} on Player A`);
+                    } else { /* Error handling */ }
+
+                    if (fileQueue.length > 1) {
+                        const secondFile = fileQueue[1];
+                        if (secondFile) {
+                            playerB.src = secondFile; playerB.load();
+                            console.log(`Initial preload (Track 1): ${secondFile} on Player B`);
+                        } else { /* Error handling */ }
+                    } else { /* Handle only one track */ }
+
+                    activePlayerElement = playerB; // Pretend B finished, so A plays first
+                    playNextTrack(); // Start the sequence
+
+                } else { /* Handle empty queue */ }
+            }); // --- End Button Click Listener ---
+
+        }); // End DOMContentLoaded
+    </script>
+
+</body>
+</html>
