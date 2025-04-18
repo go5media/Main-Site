@@ -142,7 +142,7 @@
     <h1>Announcement Player</h1>
 
      <div class="important-note">
-        <strong>Note:</strong> This version runs directly from local files. Small pauses between recordings may still occur. Use the controls below to select voice packs and specific names. Audio files must be in subdirectories named '1' and '2'.
+        <strong>Note:</strong> This version runs directly from local files (or hosting). Small pauses between recordings may still occur. Use the controls below to select voice packs and specific names. Audio files must be in subdirectories named '1' and '2'.
     </div>
 
     <div class="controls">
@@ -235,14 +235,11 @@
                 nameSelects.forEach(select => {
                     select.innerHTML = '';
                     const randomOption = document.createElement('option');
-                    randomOption.value = 'Random';
-                    randomOption.textContent = 'Random';
-                    randomOption.selected = true;
+                    randomOption.value = 'Random'; randomOption.textContent = 'Random'; randomOption.selected = true;
                     select.appendChild(randomOption);
                     allNameBaseFiles.forEach(baseName => {
                         const option = document.createElement('option');
-                        option.value = baseName;
-                        option.textContent = baseName;
+                        option.value = baseName; option.textContent = baseName;
                         select.appendChild(option);
                     });
                 });
@@ -267,23 +264,23 @@
 
              /** Gets the correct full path for a file based on voice selections. */
              function getFilePath(type, baseName) {
-                const masterPrefix = masterVoiceSelect.value + '/';
-                const rPrefixValue = rVoiceSelect.value;
-                const nPrefixValue = nVoiceSelect.value;
-                let finalPrefix = masterPrefix;
+                const masterPrefix = masterVoiceSelect.value + '/'; // e.g., "1/"
+                const rPrefixValue = rVoiceSelect.value; // "Master", "1", or "2"
+                const nPrefixValue = nVoiceSelect.value; // "Master", "1", or "2"
+                let finalPrefix = masterPrefix; // Default to master
                 if (type === 'R' && rPrefixValue !== 'Master') { finalPrefix = rPrefixValue + '/'; }
                  else if (type === 'N' && nPrefixValue !== 'Master') { finalPrefix = nPrefixValue + '/'; }
-                return finalPrefix + baseName;
+                // *** DEBUG LOG: Log the generated path ***
+                const fullPath = finalPrefix + baseName;
+                // console.log(`getFilePath(type=${type}, baseName=${baseName}) -> ${fullPath}`); // Optional: very verbose log
+                return fullPath;
              }
 
              // --- Stop and Reset Function ---
              function resetPlayback(finishedNaturally = false) {
                  console.log(`Resetting playback. Finished naturally: ${finishedNaturally}`);
-                 isPlaying = false;
-                 playButton.disabled = false;
-                 activePlayerElement = null;
-                 currentTrackIndex = -1;
-                 fileQueue = [];
+                 isPlaying = false; playButton.disabled = false; activePlayerElement = null;
+                 currentTrackIndex = -1; fileQueue = [];
                  try { if (!playerA.paused) playerA.pause(); playerA.removeAttribute('src'); playerA.load(); console.log("Player A reset."); } catch(e){ console.warn("Error resetting player A", e); }
                  try { if (!playerB.paused) playerB.pause(); playerB.removeAttribute('src'); playerB.load(); console.log("Player B reset."); } catch(e){ console.warn("Error resetting player B", e); }
                  if (finishedNaturally) { statusCurrentTrack.textContent = "Finished."; }
@@ -311,8 +308,11 @@
                     const fileToPreload = fileQueue[preloadTrackIndex];
                     if (fileToPreload) {
                         const shortPreloadName = fileToPreload.split('/').pop();
+                        // *** ADD LOGGING ***
+                        console.log(`Attempting to set player ${playerToPreload === playerA ? 'A' : 'B'}.src = "${fileToPreload}" for preload`);
+                        playerToPreload.src = fileToPreload;
+                        playerToPreload.load();
                         console.log(`Preloading index ${preloadTrackIndex} (${shortPreloadName}) on player ${playerToPreload === playerA ? 'A' : 'B'}`);
-                        playerToPreload.src = fileToPreload; playerToPreload.load();
                     } else {
                          console.warn(`File path at preload index ${preloadTrackIndex} is invalid. Cannot preload.`);
                          try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) { console.warn("Error clearing preload player src", e); }
@@ -323,7 +323,7 @@
                 }
 
                 // --- Play ---
-                console.log(`Attempting: ${playerToPlayNow === playerA ? 'A' : 'B'}.play() for ${shortNameToPlay}`);
+                console.log(`Attempting: ${playerToPlayNow === playerA ? 'A' : 'B'}.play() for ${shortNameToPlay} (Path: ${fileToPlay})`);
                 statusCurrentTrack.textContent = shortNameToPlay;
                 activePlayerElement = playerToPlayNow;
 
@@ -336,7 +336,6 @@
                             console.log(`Playback started successfully for ${shortNameToPlay}.`);
                         }).catch(error => {
                             console.error(`Error explicitly caught from .play() promise for ${shortNameToPlay}:`, error);
-                            // Error event handler will likely catch this too, but log here for clarity
                             handleError(error, activePlayerElement === playerA ? 'A' : 'B');
                         });
                     } else {
@@ -344,17 +343,13 @@
                     }
                 };
 
-                // *** ADDED DELAY FOR FIRST TRACK ***
+                // Delay only for first track (to potentially avoid "interrupted by pause" error)
                 if (currentTrackIndex === 0) {
-                    // Add a tiny delay only before playing the very first track
-                    // to potentially avoid race condition causing "interrupted by pause" error.
                     console.log("Applying small delay before playing first track...");
                     setTimeout(startPlayback, 50); // 50ms delay
                 } else {
-                    // Play subsequent tracks immediately
-                    startPlayback();
+                    startPlayback(); // Play subsequent tracks immediately
                 }
-                // *** END ADDED DELAY ***
             }
 
             /** Handles the 'ended' event for both audio players. */
@@ -384,13 +379,14 @@
                          case mediaError.MEDIA_ERR_ABORTED: specificError = 'Playback aborted.'; break;
                          case mediaError.MEDIA_ERR_NETWORK: specificError = 'Network error loading audio.'; break;
                          case mediaError.MEDIA_ERR_DECODE: specificError = 'Audio decoding error (file might be corrupt).'; break;
-                         case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: specificError = 'Audio source not supported or not found.'; break;
+                         case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: specificError = 'Audio source not supported or not found.'; break; // This is likely the one
                          default: specificError = `Unknown error code ${mediaError.code}.`;
                      }
                      console.error(`MediaError code: ${mediaError.code}, message: ${mediaError.message || '(no message)'}`);
                  } else if (errorEvent instanceof Error) { specificError = errorEvent.message; }
                  const errorIndex = (currentTrackIndex >= 0) ? currentTrackIndex : 0;
-                 const fileWithError = fileQueue[errorIndex] || 'Current/Starting file';
+                 // Try to get the intended source even if loading failed
+                 const fileWithError = (errorEvent?.target?.src) || fileQueue[errorIndex] || 'Current/Starting file';
                  statusCurrentTrack.textContent = `Error on ${fileWithError.split('/').pop()}: ${specificError} Resetting.`;
                  resetPlayback();
              }
@@ -414,31 +410,20 @@
                 const manualBaseNameSelections = nameSelections.filter(val => val !== 'Random');
                 const neededRandomCount = nameSelections.filter(val => val === 'Random').length;
                 console.log("Manual Base Name Selections (duplicates allowed):", manualBaseNameSelections);
-
                 const uniqueManualBaseNames = [...new Set(manualBaseNameSelections)];
                 let availableForRandom = [...allNameBaseFiles];
-                uniqueManualBaseNames.forEach(manualBaseName => {
-                    availableForRandom = availableForRandom.filter(f => f !== manualBaseName);
-                });
+                uniqueManualBaseNames.forEach(manualBaseName => { availableForRandom = availableForRandom.filter(f => f !== manualBaseName); });
                 console.log("Base names available for random selection:", availableForRandom);
-
                 if (neededRandomCount > availableForRandom.length) {
-                     console.error("Not enough unique base names for random selection.");
-                     statusCurrentTrack.textContent = `Error: Not enough unique names available (${availableForRandom.length}) for ${neededRandomCount} random selections.`;
-                     resetPlayback(); return;
+                     console.error("Not enough unique base names..."); statusCurrentTrack.textContent = `Error: Not enough unique names available...`; resetPlayback(); return;
                 }
                 const randomSelections = getRandomUniqueItems(availableForRandom, neededRandomCount);
                 console.log("Random base names selected:", randomSelections);
                 let randomCounter = 0;
-                for (const selection of nameSelections) {
-                    finalBaseNameFiles.push(selection === 'Random' ? randomSelections[randomCounter++] : selection);
-                }
+                for (const selection of nameSelections) { finalBaseNameFiles.push(selection === 'Random' ? randomSelections[randomCounter++] : selection); }
                 console.log("Final base name files chosen for slots:", finalBaseNameFiles);
-
-                const legalBaseName1 = finalBaseNameFiles[0];
-                const legalBaseName2 = finalBaseNameFiles[1];
-                const newBaseName1 = finalBaseNameFiles[2];
-                const newBaseName2 = finalBaseNameFiles[3];
+                const legalBaseName1 = finalBaseNameFiles[0]; const legalBaseName2 = finalBaseNameFiles[1];
+                const newBaseName1 = finalBaseNameFiles[2]; const newBaseName2 = finalBaseNameFiles[3];
                 // --- End Determine Required BASE Name Files ---
 
                 statusSelectedNames.textContent = `Legal: (${legalBaseName1} + ${legalBaseName2}), New: (${newBaseName1} + ${newBaseName2})`;
@@ -454,7 +439,7 @@
                 ];
                 currentTrackIndex = -1; // Reset index
 
-                console.log('Constructed FULL PATH File Queue:', fileQueue);
+                console.log('Constructed FULL PATH File Queue:', fileQueue); // Log the final paths
 
                 // --- Start Playback Sequence ---
                 if (fileQueue.length > 0) {
@@ -463,40 +448,37 @@
                     // Load first track onto Player A
                     const firstFile = fileQueue[0];
                     if (firstFile) {
+                        // *** ADD LOGGING ***
+                        console.log(`Attempting to set playerA.src = "${firstFile}"`);
                         playerA.src = firstFile;
                         playerA.load();
                         console.log(`Initial load (Track 0): ${firstFile} on Player A`);
                     } else {
-                        console.error("Cannot start playback: First file in queue is invalid.");
-                        statusCurrentTrack.textContent = "Error: Invalid first file.";
-                        resetPlayback(); return;
+                        console.error("Cannot start playback: First file in queue is invalid."); statusCurrentTrack.textContent = "Error: Invalid first file."; resetPlayback(); return;
                     }
 
                     // Preload second track onto Player B
                     if (fileQueue.length > 1) {
                         const secondFile = fileQueue[1];
                         if (secondFile) {
+                             // *** ADD LOGGING ***
+                            console.log(`Attempting to set playerB.src = "${secondFile}"`);
                             playerB.src = secondFile; playerB.load();
                             console.log(`Initial preload (Track 1): ${secondFile} on Player B`);
                         } else {
-                             console.warn("Second file in queue is invalid, cannot preload on Player B.");
-                             playerB.removeAttribute('src'); playerB.load();
+                             console.warn("Second file in queue is invalid, cannot preload on Player B."); playerB.removeAttribute('src'); playerB.load();
                         }
                     } else {
-                         console.log("Only one track in queue, no initial preload needed for Player B.");
-                         playerB.removeAttribute('src'); playerB.load();
+                         console.log("Only one track in queue, no initial preload needed for Player B."); playerB.removeAttribute('src'); playerB.load();
                     }
 
                     // Set starting state for player logic in playNextTrack
                     activePlayerElement = playerB; // Pretend B finished, so A plays first
-                    // Call playNextTrack to start the sequence (will play track 0 on player A)
                     console.log("Calling playNextTrack to start sequence...");
-                    playNextTrack();
+                    playNextTrack(); // Start the sequence
 
                 } else {
-                     console.log("File queue is empty after processing selections.");
-                     statusCurrentTrack.textContent = "No files to play.";
-                     resetPlayback();
+                     console.log("File queue is empty after processing selections."); statusCurrentTrack.textContent = "No files to play."; resetPlayback();
                  }
             }); // --- End Button Click Listener ---
 
