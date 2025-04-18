@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>V1 Announcement Player (Voice Packs)</title>
+    <title>Announcement Player (Voice Packs)</title>
 
     <style>
         /* Basic page styling */
@@ -262,35 +262,23 @@
                 return shuffled.slice(0, count);
             }
 
-             /**
-              * Gets the correct ABSOLUTE path for a file based on voice selections.
-              * @param {string} type - 'R' for R recordings, 'N' for N recordings.
-              * @param {string} baseName - The base filename (e.g., "R1.mp3", "N5.mp3").
-              * @returns {string} The absolute path (e.g., "/project1/1/R1.mp3").
-              */
+             /** Gets the correct ABSOLUTE path for a file based on voice selections. */
              function getFilePath(type, baseName) {
+                // *** Add check for invalid baseName input ***
+                if (!baseName || typeof baseName !== 'string' || baseName.includes('/')) {
+                    console.error(`Invalid baseName passed to getFilePath: ${baseName}`);
+                    return null; // Return null or throw error for invalid input
+                }
                 const masterVoiceDir = masterVoiceSelect.value; // "1" or "2"
                 const rVoiceDir = rVoiceSelect.value; // "Master", "1", or "2"
                 const nVoiceDir = nVoiceSelect.value; // "Master", "1", or "2"
-
                 let finalVoiceDir = masterVoiceDir; // Default to master voice directory
-
-                // Override with specific selection if not 'Master'
-                if (type === 'R' && rVoiceDir !== 'Master') {
-                    finalVoiceDir = rVoiceDir;
-                } else if (type === 'N' && nVoiceDir !== 'Master') {
-                    finalVoiceDir = nVoiceDir;
-                }
-
-                // *** Construct ABSOLUTE path from the root ***
-                // Assumes your site structure is domain.com/project1/index.html etc.
-                // Adjust "/project1/" if your base path is different.
-                const basePath = "/project1/";
+                if (type === 'R' && rVoiceDir !== 'Master') { finalVoiceDir = rVoiceDir; }
+                 else if (type === 'N' && nVoiceDir !== 'Master') { finalVoiceDir = nVoiceDir; }
+                const basePath = "/project1/"; // Assumed base path
                 const voicePath = finalVoiceDir + "/"; // e.g. "1/" or "2/"
                 const fullPath = basePath + voicePath + baseName;
-
-                // Log the generated path for debugging
-                // console.log(`getFilePath(type=${type}, baseName=${baseName}) -> ${fullPath}`); // Optional: verbose log
+                // console.log(`getFilePath(type=${type}, baseName=${baseName}) -> ${fullPath}`); // Optional verbose log
                 return fullPath;
              }
 
@@ -307,7 +295,7 @@
              // --- End Stop and Reset Function ---
 
 
-            // --- Core Playback Logic (No changes needed here) ---
+            // --- Core Playback Logic ---
             function playNextTrack() {
                 currentTrackIndex++;
                 console.log(`Attempting to play track index: ${currentTrackIndex}`);
@@ -316,7 +304,7 @@
                 let playerToPlayNow = (activePlayerElement === playerA) ? playerB : playerA;
                 let playerToPreload = (activePlayerElement === playerA) ? playerA : playerB;
                 const fileToPlay = fileQueue[currentTrackIndex];
-                if (!fileToPlay) { console.error(`Error: File path at index ${currentTrackIndex} is invalid.`); handleError(new Error(`Invalid file path at index ${currentTrackIndex}`), playerToPlayNow === playerA ? 'A' : 'B'); return; }
+                if (!fileToPlay) { console.error(`Error: File path at index ${currentTrackIndex} is invalid (null/undefined).`); handleError(new Error(`Invalid file path at index ${currentTrackIndex}`), playerToPlayNow === playerA ? 'A' : 'B'); return; }
                 const shortNameToPlay = fileToPlay.split('/').pop();
 
                 // Preload
@@ -350,7 +338,6 @@
                         .catch(error => { console.error(`Error from .play() promise for ${shortNameToPlay}:`, error); handleError(error, activePlayerElement === playerA ? 'A' : 'B'); });
                     } else { console.warn(".play() did not return a promise."); }
                 };
-
                 if (currentTrackIndex === 0) { console.log("Applying small delay before playing first track..."); setTimeout(startPlayback, 50); }
                 else { startPlayback(); }
             }
@@ -383,8 +370,7 @@
                  } else if (errorEvent instanceof Error) { specificError = errorEvent.message; }
                  const errorIndex = (currentTrackIndex >= 0) ? currentTrackIndex : 0;
                  const fileWithError = (errorEvent?.target?.src) || fileQueue[errorIndex] || 'Current/Starting file';
-                 // Display the error using the full path attempted, if available
-                 const displayPath = (errorEvent?.target?.src) ? errorEvent.target.src : fileWithError.split('/').pop();
+                 const displayPath = fileWithError.startsWith('http') ? fileWithError : fileWithError.split('/').pop(); // Show full URL if it's already absolute, else just filename
                  statusCurrentTrack.textContent = `Error on ${displayPath}: ${specificError} Resetting.`;
                  resetPlayback();
              }
@@ -393,7 +379,7 @@
             // --- End Playback Logic ---
 
 
-            // --- Event Listener for the Play Button (No changes needed here from previous version) ---
+            // --- Event Listener for the Play Button ---
             playButton.addEventListener('click', () => {
                 if (isPlaying && playButton.disabled) { console.warn("Playback process already running."); return; }
                 resetPlayback();
@@ -402,12 +388,16 @@
                 statusCurrentTrack.textContent = 'Processing selections...';
                 statusSelectedNames.textContent = '...';
 
-                // Determine Required BASE Name Files
-                const nameSelections = nameSelects.map(s => s.value);
+                // --- Determine Required BASE Name Files ---
+                const nameSelections = nameSelects.map(s => s.value); // Values are "Random" or "N*.mp3"
                 const finalBaseNameFiles = [];
                 const manualBaseNameSelections = nameSelections.filter(val => val !== 'Random');
                 const neededRandomCount = nameSelections.filter(val => val === 'Random').length;
-                console.log("Manual Base Name Selections (duplicates allowed):", manualBaseNameSelections);
+
+                // Log the values read directly from the dropdowns
+                console.log("Dropdown Selections Raw:", nameSelections);
+                console.log("Manual Base Name Selections:", manualBaseNameSelections);
+
                 const uniqueManualBaseNames = [...new Set(manualBaseNameSelections)];
                 let availableForRandom = [...allNameBaseFiles];
                 uniqueManualBaseNames.forEach(manualBaseName => { availableForRandom = availableForRandom.filter(f => f !== manualBaseName); });
@@ -419,28 +409,53 @@
                 console.log("Random base names selected:", randomSelections);
                 let randomCounter = 0;
                 for (const selection of nameSelections) { finalBaseNameFiles.push(selection === 'Random' ? randomSelections[randomCounter++] : selection); }
-                console.log("Final base name files chosen for slots:", finalBaseNameFiles);
+
+                // *** ADD LOGGING for final chosen base names ***
+                console.log("--- Base Names Determined ---");
+                console.log("Legal Base 1:", finalBaseNameFiles[0]);
+                console.log("Legal Base 2:", finalBaseNameFiles[1]);
+                console.log("New Base 1:", finalBaseNameFiles[2]);
+                console.log("New Base 2:", finalBaseNameFiles[3]);
+                console.log("-----------------------------");
+                // *** END LOGGING ***
+
                 const legalBaseName1 = finalBaseNameFiles[0]; const legalBaseName2 = finalBaseNameFiles[1];
                 const newBaseName1 = finalBaseNameFiles[2]; const newBaseName2 = finalBaseNameFiles[3];
 
+                // Check if any determined base name is invalid (e.g., contains unexpected characters or is not a string)
+                if (finalBaseNameFiles.some(name => !name || typeof name !== 'string' || name.includes('/'))) {
+                    console.error("Invalid base name detected in final selections:", finalBaseNameFiles);
+                    statusCurrentTrack.textContent = "Error: Invalid name file determined.";
+                    resetPlayback();
+                    return;
+                }
+                // --- End Determine Required BASE Name Files ---
+
                 statusSelectedNames.textContent = `Legal: (${legalBaseName1} + ${legalBaseName2}), New: (${newBaseName1} + ${newBaseName2})`;
 
-                // Construct the FULL PATH playback queue using getFilePath
-                 fileQueue = [
-                    getFilePath('R', recordingsBase.r1), getFilePath('R', recordingsBase.r2), getFilePath('R', recordingsBase.r3),
-                    getFilePath('N', legalBaseName1), getFilePath('N', legalBaseName2),
-                    getFilePath('R', recordingsBase.r4), getFilePath('N', newBaseName1), getFilePath('N', newBaseName2),
-                    getFilePath('R', recordingsBase.r5), getFilePath('N', newBaseName1), getFilePath('N', newBaseName2),
-                    getFilePath('R', recordingsBase.r6), getFilePath('N', legalBaseName1), getFilePath('N', legalBaseName2),
-                    getFilePath('R', recordingsBase.r7)
-                ];
+                // --- Construct the FULL PATH playback queue ---
+                 try {
+                     fileQueue = [
+                        getFilePath('R', recordingsBase.r1), getFilePath('R', recordingsBase.r2), getFilePath('R', recordingsBase.r3),
+                        getFilePath('N', legalBaseName1), getFilePath('N', legalBaseName2),
+                        getFilePath('R', recordingsBase.r4), getFilePath('N', newBaseName1), getFilePath('N', newBaseName2),
+                        getFilePath('R', recordingsBase.r5), getFilePath('N', newBaseName1), getFilePath('N', newBaseName2),
+                        getFilePath('R', recordingsBase.r6), getFilePath('N', legalBaseName1), getFilePath('N', legalBaseName2),
+                        getFilePath('R', recordingsBase.r7)
+                    ].filter(path => path !== null); // Filter out null paths from invalid base names
+                 } catch (error) {
+                      console.error("Error during getFilePath calls:", error);
+                      statusCurrentTrack.textContent = "Error: Could not construct file paths.";
+                      resetPlayback();
+                      return;
+                 }
                 currentTrackIndex = -1; // Reset index
-                console.log('Constructed FULL PATH File Queue:', fileQueue); // Log the final paths
+                console.log('Constructed FULL PATH File Queue:', fileQueue);
 
-                // Start Playback Sequence
+                // --- Start Playback Sequence ---
                 if (fileQueue.length > 0) {
                     statusCurrentTrack.textContent = `Starting...`;
-                    const firstFile = fileQueue[0]; // Should be absolute path e.g., "/project1/1/R1.mp3"
+                    const firstFile = fileQueue[0];
                     if (firstFile) {
                         console.log(`Attempting to set playerA.src = "${firstFile}"`);
                         playerA.src = firstFile; playerA.load();
