@@ -162,7 +162,7 @@
                  <option value="C2.mp3">Chime 2 (C2.mp3)</option>
                  <option value="C3.mp3">Chime 3 (C3.mp3)</option>
                  <option value="C4.mp3">Chime 4 (C4.mp3)</option>
-                 <option value="">No Chime</option> </select>
+                 <option value="C5.mp3">Chime 5 (C5.mp3)</option> <option value="">No Chime</option> </select>
         </div>
          <div class="chime-control">
              <label for="chimeReps">Repetitions:</label>
@@ -411,10 +411,10 @@
                 const chimeRepetitions = parseInt(chimeRepsInput.value) || 0;
                 const chimeQueue = []; // Will contain ABSOLUTE chime paths
                 if (selectedChimeBaseFile && chimeRepetitions > 0) {
-                    // *** Construct absolute path for chimes ***
+                    // Construct absolute path for chimes using basePath
                     const chimeFullPath = basePath + selectedChimeBaseFile; // e.g., /project1/C1.mp3
                     console.log(`Constructing chime path: ${chimeFullPath}`);
-                    // *** NOTE: If you get errors on C*.mp3 files, check the files themselves AND this path ***
+                    // NOTE: If you get errors on C*.mp3 files, check the files themselves AND this path
                     for (let i = 0; i < chimeRepetitions; i++) {
                         chimeQueue.push(chimeFullPath); // Push the full absolute path
                     }
