@@ -150,7 +150,7 @@
     <h1>Announcement Player</h1>
 
      <div class="important-note">
-        <strong>Note:</strong> This version uses absolute paths (e.g., /project1/1/R1.mp3) for voice packs. Chime files (C*.mp3) use relative paths (should be in the same directory as this HTML). Small pauses between recordings may still occur. If you get errors for C*.mp3 files, check the files themselves for corruption.
+        <strong>Note:</strong> This version uses absolute paths (e.g., /project1/1/R1.mp3) for voice packs AND chimes (e.g., /project1/C1.mp3). Small pauses between recordings may still occur. Files must be in the correct locations relative to the domain root.
     </div>
 
     <div class="controls">
@@ -253,6 +253,13 @@
             for (let i = 1; i <= 10; i++) { allNameBaseFiles.push(`N${i}.mp3`); }
             // --- End Base Audio File Definitions ---
 
+             // --- Base Path Definition ---
+             // Assumes your site structure is domain.com/project1/index.html etc.
+             // Adjust "/project1/" if your base path is different.
+             const basePath = "/project1/";
+             // --- End Base Path Definition ---
+
+
             // --- Populate Name Dropdowns ---
             function populateNameDropdowns() {
                 nameSelects.forEach(select => {
@@ -285,31 +292,18 @@
                 return shuffled.slice(0, count);
             }
 
-             /**
-              * Gets the correct ABSOLUTE path for R or N files based on voice selections.
-              * @param {string} type - 'R' for R recordings, 'N' for N recordings.
-              * @param {string} baseName - The base filename (e.g., "R1.mp3", "N5.mp3").
-              * @returns {string|null} The absolute path (e.g., "/project1/1/R1.mp3") or null if baseName is invalid.
-              */
+             /** Gets the correct ABSOLUTE path for R or N files based on voice selections. */
              function getVoiceFilePath(type, baseName) {
-                // Validate baseName input
-                if (!baseName || typeof baseName !== 'string' || baseName.includes('/')) {
-                    console.error(`Invalid baseName passed to getVoiceFilePath: ${baseName}`);
-                    return null;
-                }
+                if (!baseName || typeof baseName !== 'string' || baseName.includes('/')) { console.error(`Invalid baseName for voice file: ${baseName}`); return null; }
                 const masterVoiceDir = masterVoiceSelect.value; // "1" or "2"
                 const rVoiceDir = rVoiceSelect.value; // "Master", "1", or "2"
                 const nVoiceDir = nVoiceSelect.value; // "Master", "1", or "2"
-                let finalVoiceDir = masterVoiceDir; // Default to master
+                let finalVoiceDir = masterVoiceDir;
                 if (type === 'R' && rVoiceDir !== 'Master') { finalVoiceDir = rVoiceDir; }
                  else if (type === 'N' && nVoiceDir !== 'Master') { finalVoiceDir = nVoiceDir; }
-
-                // *** USE ABSOLUTE PATH ***
-                const basePath = "/project1/"; // Assumed base path from domain root
                 const voicePath = finalVoiceDir + "/"; // e.g. "1/" or "2/"
                 const fullPath = basePath + voicePath + baseName; // e.g., /project1/1/R1.mp3
-
-                console.log(`getVoiceFilePath(type=${type}, baseName=${baseName}) -> ${fullPath}`); // Log generated absolute path
+                console.log(`getVoiceFilePath(type=${type}, baseName=${baseName}) -> ${fullPath}`);
                 return fullPath;
              }
 
@@ -334,7 +328,7 @@
 
                 let playerToPlayNow = (activePlayerElement === playerA) ? playerB : playerA;
                 let playerToPreload = (activePlayerElement === playerA) ? playerA : playerB;
-                const fileToPlay = fileQueue[currentTrackIndex]; // Absolute path for R/N, base name for C
+                const fileToPlay = fileQueue[currentTrackIndex]; // Absolute path for R/N/C
                 if (!fileToPlay) { console.error(`Error: File path at index ${currentTrackIndex} is invalid.`); handleError(new Error(`Invalid file path at index ${currentTrackIndex}`), playerToPlayNow === playerA ? 'A' : 'B'); return; }
                 const shortNameToPlay = fileToPlay.split('/').pop();
 
@@ -387,14 +381,13 @@
                          case mediaError.MEDIA_ERR_ABORTED: specificError = 'Playback aborted.'; break;
                          case mediaError.MEDIA_ERR_NETWORK: specificError = 'Network error loading audio.'; break;
                          case mediaError.MEDIA_ERR_DECODE: specificError = 'Audio decoding error.'; break;
-                         case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: specificError = 'Audio source not supported or not found.'; break; // This is the likely one
+                         case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: specificError = 'Audio source not supported or not found.'; break;
                          default: specificError = `Unknown error code ${mediaError.code}.`;
                      }
                      console.error(`MediaError code: ${mediaError.code}, message: ${mediaError.message || '(no message)'}`);
                  } else if (errorEvent instanceof Error) { specificError = errorEvent.message; }
                  const errorIndex = (currentTrackIndex >= 0) ? currentTrackIndex : 0;
                  const fileWithError = (errorEvent?.target?.src) || fileQueue[errorIndex] || 'Current/Starting file';
-                 // Display the full path if it looks like one, otherwise just the filename part
                  const displayPath = fileWithError.startsWith('http') || fileWithError.startsWith('/') ? fileWithError : fileWithError.split('/').pop();
                  statusCurrentTrack.textContent = `Error on ${displayPath}: ${specificError} Resetting.`;
                  resetPlayback();
@@ -416,15 +409,17 @@
                 // --- 1. Get Chime Settings ---
                 const selectedChimeBaseFile = chimeFileSelect.value; // e.g., "C1.mp3" or ""
                 const chimeRepetitions = parseInt(chimeRepsInput.value) || 0;
-                const chimeQueue = []; // Contains BASE chime filenames (e.g., "C1.mp3")
+                const chimeQueue = []; // Will contain ABSOLUTE chime paths
                 if (selectedChimeBaseFile && chimeRepetitions > 0) {
-                    // *** NOTE: If you get errors on C*.mp3 files, check the files themselves for corruption ***
+                    // *** Construct absolute path for chimes ***
+                    const chimeFullPath = basePath + selectedChimeBaseFile; // e.g., /project1/C1.mp3
+                    console.log(`Constructing chime path: ${chimeFullPath}`);
+                    // *** NOTE: If you get errors on C*.mp3 files, check the files themselves AND this path ***
                     for (let i = 0; i < chimeRepetitions; i++) {
-                        // Use base name directly, assuming it's relative to index.html
-                        chimeQueue.push(selectedChimeBaseFile);
+                        chimeQueue.push(chimeFullPath); // Push the full absolute path
                     }
                 }
-                console.log("Chime Queue (Base Names):", chimeQueue);
+                console.log("Chime Queue (Absolute Paths):", chimeQueue);
                 // --- End Chime Settings ---
 
                 // --- 2. Determine Required BASE Name Files ---
@@ -458,15 +453,14 @@
                         getVoiceFilePath('R', recordingsBase.r5), getVoiceFilePath('N', newBaseName1), getVoiceFilePath('N', newBaseName2),
                         getVoiceFilePath('R', recordingsBase.r6), getVoiceFilePath('N', legalBaseName1), getVoiceFilePath('N', legalBaseName2),
                         getVoiceFilePath('R', recordingsBase.r7)
-                    ].filter(path => path !== null); // Filter out null paths if getVoiceFilePath had errors
+                    ].filter(path => path !== null); // Filter out null paths
                  } catch (error) { console.error("Error constructing main queue:", error); statusCurrentTrack.textContent = "Error: Could not construct paths."; resetPlayback(); return; }
                  console.log("Main Announcement Queue (Absolute Paths):", mainAnnouncementQueue);
                  // --- End Construct Main Queue ---
 
 
                 // --- 4. Combine Queues ---
-                // Chime files use base names (relative paths from HTML)
-                // Main files use absolute voice paths (e.g., /project1/1/R1.mp3)
+                // Both queues now use absolute paths (relative to domain root)
                 fileQueue = [...chimeQueue, ...mainAnnouncementQueue];
                 currentTrackIndex = -1;
                 console.log('Constructed Combined File Queue:', fileQueue);
@@ -475,7 +469,7 @@
                 // --- 5. Start Playback Sequence ---
                 if (fileQueue.length > 0) {
                     statusCurrentTrack.textContent = `Starting...`;
-                    const firstFile = fileQueue[0]; // Could be chime (base name) or R1 (absolute path)
+                    const firstFile = fileQueue[0]; // Should be absolute path e.g., /project1/C1.mp3 or /project1/1/R1.mp3
                     if (firstFile) {
                         console.log(`Attempting to set playerA.src = "${firstFile}"`);
                         playerA.src = firstFile; playerA.load();
@@ -503,4 +497,3 @@
 
 </body>
 </html>
- 
