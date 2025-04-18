@@ -150,7 +150,7 @@
     <h1>Announcement Player</h1>
 
      <div class="important-note">
-        <strong>Note:</strong> This version runs directly from local files (or hosting). Small pauses between recordings may still occur. Chime files (C*.mp3) should be in the same directory as this HTML file. Voice pack files (R*.mp3, N*.mp3) must be in subdirectories '1' and '2'.
+        <strong>Note:</strong> This version uses relative paths. Small pauses between recordings may still occur. Chime files (C*.mp3) should be in the same directory as this HTML file. Voice pack files (R*.mp3, N*.mp3) must be in subdirectories '1' and '2'.
     </div>
 
     <div class="controls">
@@ -276,7 +276,7 @@
             // --- End Populate Name Dropdowns ---
 
             // --- State Variables ---
-            let fileQueue = []; // Holds the full paths/base names for current playback sequence
+            let fileQueue = [];
             let currentTrackIndex = -1;
             let activePlayerElement = null;
             let isPlaying = false;
@@ -290,20 +290,37 @@
                 return shuffled.slice(0, count);
             }
 
-             /** Gets the correct RELATIVE path for R or N files based on voice selections. */
+             /**
+              * Gets the correct RELATIVE path for R or N files based on voice selections.
+              * @param {string} type - 'R' for R recordings, 'N' for N recordings.
+              * @param {string} baseName - The base filename (e.g., "R1.mp3", "N5.mp3").
+              * @returns {string|null} The relative path (e.g., "1/R1.mp3") or null if baseName is invalid.
+              */
              function getVoiceFilePath(type, baseName) {
-                if (!baseName || typeof baseName !== 'string' || baseName.includes('/')) { console.error(`Invalid baseName for voice file: ${baseName}`); return null; }
-                const masterVoiceDir = masterVoiceSelect.value; // "1" or "2"
+                // Validate baseName input
+                if (!baseName || typeof baseName !== 'string' || baseName.includes('/')) {
+                    console.error(`Invalid baseName passed to getVoiceFilePath: ${baseName}`);
+                    return null; // Return null for invalid input
+                }
+                const masterVoiceDir = masterVoiceSelect.value; // Should be "1" or "2"
                 const rVoiceDir = rVoiceSelect.value; // "Master", "1", or "2"
                 const nVoiceDir = nVoiceSelect.value; // "Master", "1", or "2"
-                let finalVoiceDir = masterVoiceDir;
-                if (type === 'R' && rVoiceDir !== 'Master') { finalVoiceDir = rVoiceDir; }
-                 else if (type === 'N' && nVoiceDir !== 'Master') { finalVoiceDir = nVoiceDir; }
-                // Construct relative path e.g., "1/R1.mp3"
-                const voicePath = finalVoiceDir + "/";
-                const fullPath = voicePath + baseName;
-                // console.log(`getVoiceFilePath(type=${type}, baseName=${baseName}) -> ${fullPath}`);
-                return fullPath;
+
+                let finalVoiceDir = masterVoiceDir; // Default to master selection
+
+                // Override if a specific voice is chosen for R or N type
+                if (type === 'R' && rVoiceDir !== 'Master') {
+                    finalVoiceDir = rVoiceDir;
+                } else if (type === 'N' && nVoiceDir !== 'Master') {
+                    finalVoiceDir = nVoiceDir;
+                }
+
+                // Construct the relative path (e.g., "1/R1.mp3")
+                const voicePath = finalVoiceDir + "/"; // Add trailing slash for directory
+                const relativePath = voicePath + baseName;
+
+                // console.log(`getVoiceFilePath(type=${type}, baseName=${baseName}) -> ${relativePath}`); // Optional verbose log
+                return relativePath;
              }
 
              // --- Stop and Reset Function ---
@@ -327,7 +344,7 @@
 
                 let playerToPlayNow = (activePlayerElement === playerA) ? playerB : playerA;
                 let playerToPreload = (activePlayerElement === playerA) ? playerA : playerB;
-                const fileToPlay = fileQueue[currentTrackIndex]; // Full path for R/N, base name for C
+                const fileToPlay = fileQueue[currentTrackIndex]; // Relative path for R/N, base name for C
                 if (!fileToPlay) { console.error(`Error: File path at index ${currentTrackIndex} is invalid.`); handleError(new Error(`Invalid file path at index ${currentTrackIndex}`), playerToPlayNow === playerA ? 'A' : 'B'); return; }
                 const shortNameToPlay = fileToPlay.split('/').pop();
 
@@ -340,8 +357,8 @@
                         console.log(`Attempting to set player ${playerToPreload === playerA ? 'A' : 'B'}.src = "${fileToPreload}" for preload`);
                         playerToPreload.src = fileToPreload; playerToPreload.load();
                         console.log(`Preloading index ${preloadTrackIndex} (${shortPreloadName}) on player ${playerToPreload === playerA ? 'A' : 'B'}`);
-                    } else { console.warn(`Invalid file path at preload index ${preloadTrackIndex}.`); /* Clear src */ try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) {} }
-                } else { console.log(`No track to preload... clearing src.`); /* Clear src */ try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) {} }
+                    } else { console.warn(`Invalid file path at preload index ${preloadTrackIndex}.`); try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) {} }
+                } else { console.log(`No track to preload... clearing src.`); try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) {} }
 
                 // Play current track
                 console.log(`Attempting: ${playerToPlayNow === playerA ? 'A' : 'B'}.play() for ${shortNameToPlay} (Path: ${fileToPlay})`);
@@ -356,7 +373,6 @@
                         .catch(error => { console.error(`Error from .play() promise for ${shortNameToPlay}:`, error); handleError(error, activePlayerElement === playerA ? 'A' : 'B'); });
                     } else { console.warn(".play() did not return a promise."); }
                 };
-                // Apply delay only for the very first track in the combined queue
                 if (currentTrackIndex === 0) { console.log("Applying small delay before playing first track..."); setTimeout(startPlayback, 50); }
                 else { startPlayback(); }
             }
@@ -366,7 +382,7 @@
                      const playerName = (event.target === playerA) ? 'A' : 'B';
                      console.log(`Player ${playerName} ended (Track Index: ${currentTrackIndex}).`);
                      try { event.target.pause(); console.log(`Player ${playerName} explicitly paused.`); } catch (e) {}
-                     playNextTrack(); // Play next track
+                     playNextTrack();
                  } else { /* Ignore ended event for inactive player */ }
             }
             playerA.addEventListener('ended', handleTrackEnd);
@@ -408,11 +424,10 @@
 
                 // --- 1. Get Chime Settings ---
                 const selectedChimeBaseFile = chimeFileSelect.value; // e.g., "C1.mp3" or ""
-                const chimeRepetitions = parseInt(chimeRepsInput.value) || 0; // Default to 0 if input is invalid
-                const chimeQueue = []; // This queue will contain BASE chime filenames
+                const chimeRepetitions = parseInt(chimeRepsInput.value) || 0;
+                const chimeQueue = []; // Contains BASE chime filenames (e.g., "C1.mp3")
                 if (selectedChimeBaseFile && chimeRepetitions > 0) {
                     for (let i = 0; i < chimeRepetitions; i++) {
-                        // Add the base filename directly, assumes it's relative to index.html
                         chimeQueue.push(selectedChimeBaseFile);
                     }
                 }
@@ -440,7 +455,7 @@
 
                 statusSelectedNames.textContent = `Legal: (${legalBaseName1} + ${legalBaseName2}), New: (${newBaseName1} + ${newBaseName2})`;
 
-                // --- 3. Construct the Main Announcement Queue (with voice paths) ---
+                // --- 3. Construct the Main Announcement Queue (with RELATIVE voice paths) ---
                 let mainAnnouncementQueue = [];
                  try {
                      mainAnnouncementQueue = [
@@ -452,12 +467,12 @@
                         getVoiceFilePath('R', recordingsBase.r7)
                     ].filter(path => path !== null); // Filter out null paths if getVoiceFilePath had errors
                  } catch (error) { console.error("Error constructing main queue:", error); statusCurrentTrack.textContent = "Error: Could not construct paths."; resetPlayback(); return; }
-                 console.log("Main Announcement Queue (Full Paths):", mainAnnouncementQueue);
+                 console.log("Main Announcement Queue (Relative Paths):", mainAnnouncementQueue);
                  // --- End Construct Main Queue ---
 
 
                 // --- 4. Combine Queues ---
-                // Chime files use base names (relative paths), main files use voice paths (relative paths)
+                // Chime files use base names (relative paths from HTML), main files use voice paths (relative paths from HTML)
                 fileQueue = [...chimeQueue, ...mainAnnouncementQueue];
                 currentTrackIndex = -1;
                 console.log('Constructed Combined File Queue:', fileQueue);
@@ -466,7 +481,7 @@
                 // --- 5. Start Playback Sequence ---
                 if (fileQueue.length > 0) {
                     statusCurrentTrack.textContent = `Starting...`;
-                    const firstFile = fileQueue[0]; // Could be chime or R1 (relative path)
+                    const firstFile = fileQueue[0]; // Could be chime (base name) or R1 (e.g., "1/R1.mp3")
                     if (firstFile) {
                         console.log(`Attempting to set playerA.src = "${firstFile}"`);
                         playerA.src = firstFile; playerA.load();
