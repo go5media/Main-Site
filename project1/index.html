@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Announcement Player (Voice Packs)</title>
+    <title>Announcement Player (Chimes + Voice Packs)</title>
 
     <style>
         /* Basic page styling */
@@ -112,7 +112,8 @@
             color: #555;
         }
 
-        .control-group label, .voice-control label {
+        /* Styling for labels and selects/inputs */
+        .control-group label, .voice-control label, .chime-control label {
             display: inline-block;
             margin-right: 5px;
             margin-bottom: 10px;
@@ -120,7 +121,7 @@
             vertical-align: middle;
         }
 
-         .control-group select, .voice-control select {
+         .control-group select, .voice-control select, .chime-control select, .chime-control input {
              padding: 6px 8px;
              min-width: 120px;
              margin-right: 20px;
@@ -129,12 +130,19 @@
              border-radius: 4px;
              margin-bottom: 10px; /* Ensure space below selects */
          }
-         .voice-control { /* Specific styling for voice controls */
+         /* Specific widths for different control types */
+         .voice-control label { min-width: 110px; }
+         .chime-control label { min-width: 90px; }
+         .chime-control input[type="number"] { width: 60px; min-width: 60px; } /* Smaller width for number input */
+
+         /* Grouping for chime controls */
+         .chime-control {
              margin-bottom: 15px;
          }
-         .voice-control label {
-             min-width: 110px; /* Wider label for voice controls */
+         .chime-control:last-child {
+             margin-bottom: 0; /* No margin below the last chime control */
          }
+
     </style>
 </head>
 <body>
@@ -142,9 +150,24 @@
     <h1>Announcement Player</h1>
 
      <div class="important-note">
-        <strong>Note:</strong> This version uses absolute paths (starting with /project1/). Small pauses between recordings may still occur. Audio files must be in subdirectories named '1' and '2' inside 'project1'.
+        <strong>Note:</strong> This version runs directly from local files (or hosting). Small pauses between recordings may still occur. Chime files (C*.mp3) should be in the same directory as this HTML file. Voice pack files (R*.mp3, N*.mp3) must be in subdirectories '1' and '2'.
     </div>
 
+    <div class="controls">
+        <h2>Chime Settings</h2>
+        <div class="chime-control">
+             <label for="chimeFile">Chime Sound:</label>
+             <select id="chimeFile">
+                 <option value="C1.mp3" selected>Chime 1 (C1.mp3)</option>
+                 <option value="C2.mp3">Chime 2 (C2.mp3)</option>
+                 <option value="C3.mp3">Chime 3 (C3.mp3)</option>
+                 <option value="C4.mp3">Chime 4 (C4.mp3)</option>
+                 <option value="">No Chime</option> </select>
+        </div>
+         <div class="chime-control">
+             <label for="chimeReps">Repetitions:</label>
+             <input type="number" id="chimeReps" min="0" max="10" value="1"> </div>
+    </div>
     <div class="controls">
         <h2>Voice Pack Selection</h2>
         <div class="voice-control">
@@ -193,7 +216,7 @@
     <button id="playButton">Play Announcement</button>
 
     <div id="status">
-        <p>Configure voices/names above and click the button to play.</p>
+        <p>Configure chime/voices/names above and click the button to play.</p>
         <p><strong>Chosen Name Pairs:</strong> <span id="selectedNames"></span></p>
         <p><strong>Currently Playing:</strong> <span id="currentTrack">Idle</span></p>
     </div>
@@ -209,9 +232,14 @@
             const statusCurrentTrack = document.getElementById('currentTrack');
             const playerA = document.getElementById('playerA');
             const playerB = document.getElementById('playerB');
+            // Chime selectors
+            const chimeFileSelect = document.getElementById('chimeFile');
+            const chimeRepsInput = document.getElementById('chimeReps');
+            // Voice selectors
             const masterVoiceSelect = document.getElementById('masterVoice');
             const rVoiceSelect = document.getElementById('rVoice');
             const nVoiceSelect = document.getElementById('nVoice');
+            // Name selectors
             const legalFirstSelect = document.getElementById('legalFirst');
             const legalLastSelect = document.getElementById('legalLast');
             const newFirstSelect = document.getElementById('newFirst');
@@ -248,7 +276,7 @@
             // --- End Populate Name Dropdowns ---
 
             // --- State Variables ---
-            let fileQueue = [];
+            let fileQueue = []; // Holds the full paths/base names for current playback sequence
             let currentTrackIndex = -1;
             let activePlayerElement = null;
             let isPlaying = false;
@@ -262,23 +290,19 @@
                 return shuffled.slice(0, count);
             }
 
-             /** Gets the correct ABSOLUTE path for a file based on voice selections. */
-             function getFilePath(type, baseName) {
-                // *** Add check for invalid baseName input ***
-                if (!baseName || typeof baseName !== 'string' || baseName.includes('/')) {
-                    console.error(`Invalid baseName passed to getFilePath: ${baseName}`);
-                    return null; // Return null or throw error for invalid input
-                }
+             /** Gets the correct RELATIVE path for R or N files based on voice selections. */
+             function getVoiceFilePath(type, baseName) {
+                if (!baseName || typeof baseName !== 'string' || baseName.includes('/')) { console.error(`Invalid baseName for voice file: ${baseName}`); return null; }
                 const masterVoiceDir = masterVoiceSelect.value; // "1" or "2"
                 const rVoiceDir = rVoiceSelect.value; // "Master", "1", or "2"
                 const nVoiceDir = nVoiceSelect.value; // "Master", "1", or "2"
-                let finalVoiceDir = masterVoiceDir; // Default to master voice directory
+                let finalVoiceDir = masterVoiceDir;
                 if (type === 'R' && rVoiceDir !== 'Master') { finalVoiceDir = rVoiceDir; }
                  else if (type === 'N' && nVoiceDir !== 'Master') { finalVoiceDir = nVoiceDir; }
-                const basePath = "/project1/"; // Assumed base path
-                const voicePath = finalVoiceDir + "/"; // e.g. "1/" or "2/"
-                const fullPath = basePath + voicePath + baseName;
-                // console.log(`getFilePath(type=${type}, baseName=${baseName}) -> ${fullPath}`); // Optional verbose log
+                // Construct relative path e.g., "1/R1.mp3"
+                const voicePath = finalVoiceDir + "/";
+                const fullPath = voicePath + baseName;
+                // console.log(`getVoiceFilePath(type=${type}, baseName=${baseName}) -> ${fullPath}`);
                 return fullPath;
              }
 
@@ -303,11 +327,11 @@
 
                 let playerToPlayNow = (activePlayerElement === playerA) ? playerB : playerA;
                 let playerToPreload = (activePlayerElement === playerA) ? playerA : playerB;
-                const fileToPlay = fileQueue[currentTrackIndex];
-                if (!fileToPlay) { console.error(`Error: File path at index ${currentTrackIndex} is invalid (null/undefined).`); handleError(new Error(`Invalid file path at index ${currentTrackIndex}`), playerToPlayNow === playerA ? 'A' : 'B'); return; }
+                const fileToPlay = fileQueue[currentTrackIndex]; // Full path for R/N, base name for C
+                if (!fileToPlay) { console.error(`Error: File path at index ${currentTrackIndex} is invalid.`); handleError(new Error(`Invalid file path at index ${currentTrackIndex}`), playerToPlayNow === playerA ? 'A' : 'B'); return; }
                 const shortNameToPlay = fileToPlay.split('/').pop();
 
-                // Preload
+                // Preload next track
                 const preloadTrackIndex = currentTrackIndex + 1;
                 if (preloadTrackIndex < fileQueue.length) {
                     const fileToPreload = fileQueue[preloadTrackIndex];
@@ -316,16 +340,10 @@
                         console.log(`Attempting to set player ${playerToPreload === playerA ? 'A' : 'B'}.src = "${fileToPreload}" for preload`);
                         playerToPreload.src = fileToPreload; playerToPreload.load();
                         console.log(`Preloading index ${preloadTrackIndex} (${shortPreloadName}) on player ${playerToPreload === playerA ? 'A' : 'B'}`);
-                    } else {
-                         console.warn(`File path at preload index ${preloadTrackIndex} is invalid.`);
-                         try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) { console.warn("Error clearing preload player src", e); }
-                    }
-                } else {
-                    console.log(`No track to preload on player ${playerToPreload === playerA ? 'A' : 'B'}, clearing src.`);
-                     try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) { console.warn("Error clearing preload player src", e); }
-                }
+                    } else { console.warn(`Invalid file path at preload index ${preloadTrackIndex}.`); /* Clear src */ try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) {} }
+                } else { console.log(`No track to preload... clearing src.`); /* Clear src */ try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) {} }
 
-                // Play
+                // Play current track
                 console.log(`Attempting: ${playerToPlayNow === playerA ? 'A' : 'B'}.play() for ${shortNameToPlay} (Path: ${fileToPlay})`);
                 statusCurrentTrack.textContent = shortNameToPlay;
                 activePlayerElement = playerToPlayNow;
@@ -334,10 +352,11 @@
                     console.log(`Executing .play() for ${shortNameToPlay} on player ${activePlayerElement === playerA ? 'A' : 'B'}`);
                     const playPromise = activePlayerElement.play();
                     if (playPromise !== undefined) {
-                        playPromise.then(() => { console.log(`Playback started successfully for ${shortNameToPlay}.`); })
+                        playPromise.then(() => { console.log(`Playback started: ${shortNameToPlay}.`); })
                         .catch(error => { console.error(`Error from .play() promise for ${shortNameToPlay}:`, error); handleError(error, activePlayerElement === playerA ? 'A' : 'B'); });
                     } else { console.warn(".play() did not return a promise."); }
                 };
+                // Apply delay only for the very first track in the combined queue
                 if (currentTrackIndex === 0) { console.log("Applying small delay before playing first track..."); setTimeout(startPlayback, 50); }
                 else { startPlayback(); }
             }
@@ -346,9 +365,8 @@
                  if (event.target === activePlayerElement) {
                      const playerName = (event.target === playerA) ? 'A' : 'B';
                      console.log(`Player ${playerName} ended (Track Index: ${currentTrackIndex}).`);
-                     try { event.target.pause(); console.log(`Player ${playerName} explicitly paused.`); }
-                     catch (e) { console.warn(`Could not pause player ${playerName}`, e); }
-                     playNextTrack();
+                     try { event.target.pause(); console.log(`Player ${playerName} explicitly paused.`); } catch (e) {}
+                     playNextTrack(); // Play next track
                  } else { /* Ignore ended event for inactive player */ }
             }
             playerA.addEventListener('ended', handleTrackEnd);
@@ -357,7 +375,7 @@
              function handleError(errorEvent, playerName) {
                  console.error(`Audio Error Event on Player ${playerName}:`, errorEvent);
                  let specificError = 'Unknown playback error';
-                 if (errorEvent && errorEvent.target && errorEvent.target.error) {
+                 if (errorEvent?.target?.error) {
                      const mediaError = errorEvent.target.error;
                      switch (mediaError.code) {
                          case mediaError.MEDIA_ERR_ABORTED: specificError = 'Playback aborted.'; break;
@@ -370,7 +388,7 @@
                  } else if (errorEvent instanceof Error) { specificError = errorEvent.message; }
                  const errorIndex = (currentTrackIndex >= 0) ? currentTrackIndex : 0;
                  const fileWithError = (errorEvent?.target?.src) || fileQueue[errorIndex] || 'Current/Starting file';
-                 const displayPath = fileWithError.startsWith('http') ? fileWithError : fileWithError.split('/').pop(); // Show full URL if it's already absolute, else just filename
+                 const displayPath = fileWithError.startsWith('http') || fileWithError.startsWith('/') ? fileWithError : fileWithError.split('/').pop();
                  statusCurrentTrack.textContent = `Error on ${displayPath}: ${specificError} Resetting.`;
                  resetPlayback();
              }
@@ -388,74 +406,67 @@
                 statusCurrentTrack.textContent = 'Processing selections...';
                 statusSelectedNames.textContent = '...';
 
-                // --- Determine Required BASE Name Files ---
-                const nameSelections = nameSelects.map(s => s.value); // Values are "Random" or "N*.mp3"
+                // --- 1. Get Chime Settings ---
+                const selectedChimeBaseFile = chimeFileSelect.value; // e.g., "C1.mp3" or ""
+                const chimeRepetitions = parseInt(chimeRepsInput.value) || 0; // Default to 0 if input is invalid
+                const chimeQueue = []; // This queue will contain BASE chime filenames
+                if (selectedChimeBaseFile && chimeRepetitions > 0) {
+                    for (let i = 0; i < chimeRepetitions; i++) {
+                        // Add the base filename directly, assumes it's relative to index.html
+                        chimeQueue.push(selectedChimeBaseFile);
+                    }
+                }
+                console.log("Chime Queue (Base Names):", chimeQueue);
+                // --- End Chime Settings ---
+
+                // --- 2. Determine Required BASE Name Files ---
+                const nameSelections = nameSelects.map(s => s.value);
                 const finalBaseNameFiles = [];
                 const manualBaseNameSelections = nameSelections.filter(val => val !== 'Random');
                 const neededRandomCount = nameSelections.filter(val => val === 'Random').length;
-
-                // Log the values read directly from the dropdowns
-                console.log("Dropdown Selections Raw:", nameSelections);
                 console.log("Manual Base Name Selections:", manualBaseNameSelections);
-
                 const uniqueManualBaseNames = [...new Set(manualBaseNameSelections)];
                 let availableForRandom = [...allNameBaseFiles];
                 uniqueManualBaseNames.forEach(manualBaseName => { availableForRandom = availableForRandom.filter(f => f !== manualBaseName); });
-                console.log("Base names available for random selection:", availableForRandom);
-                if (neededRandomCount > availableForRandom.length) {
-                     console.error("Not enough unique base names..."); statusCurrentTrack.textContent = `Error: Not enough unique names available...`; resetPlayback(); return;
-                }
+                if (neededRandomCount > availableForRandom.length) { console.error("Not enough unique names..."); statusCurrentTrack.textContent = `Error: Not enough unique names...`; resetPlayback(); return; }
                 const randomSelections = getRandomUniqueItems(availableForRandom, neededRandomCount);
-                console.log("Random base names selected:", randomSelections);
                 let randomCounter = 0;
                 for (const selection of nameSelections) { finalBaseNameFiles.push(selection === 'Random' ? randomSelections[randomCounter++] : selection); }
-
-                // *** ADD LOGGING for final chosen base names ***
-                console.log("--- Base Names Determined ---");
-                console.log("Legal Base 1:", finalBaseNameFiles[0]);
-                console.log("Legal Base 2:", finalBaseNameFiles[1]);
-                console.log("New Base 1:", finalBaseNameFiles[2]);
-                console.log("New Base 2:", finalBaseNameFiles[3]);
-                console.log("-----------------------------");
-                // *** END LOGGING ***
-
+                console.log("Final base name files:", finalBaseNameFiles);
                 const legalBaseName1 = finalBaseNameFiles[0]; const legalBaseName2 = finalBaseNameFiles[1];
                 const newBaseName1 = finalBaseNameFiles[2]; const newBaseName2 = finalBaseNameFiles[3];
-
-                // Check if any determined base name is invalid (e.g., contains unexpected characters or is not a string)
-                if (finalBaseNameFiles.some(name => !name || typeof name !== 'string' || name.includes('/'))) {
-                    console.error("Invalid base name detected in final selections:", finalBaseNameFiles);
-                    statusCurrentTrack.textContent = "Error: Invalid name file determined.";
-                    resetPlayback();
-                    return;
-                }
-                // --- End Determine Required BASE Name Files ---
+                if (finalBaseNameFiles.some(name => !name || typeof name !== 'string' || name.includes('/'))) { console.error("Invalid base name detected:", finalBaseNameFiles); statusCurrentTrack.textContent = "Error: Invalid name file."; resetPlayback(); return; }
+                // --- End Determine BASE Name Files ---
 
                 statusSelectedNames.textContent = `Legal: (${legalBaseName1} + ${legalBaseName2}), New: (${newBaseName1} + ${newBaseName2})`;
 
-                // --- Construct the FULL PATH playback queue ---
+                // --- 3. Construct the Main Announcement Queue (with voice paths) ---
+                let mainAnnouncementQueue = [];
                  try {
-                     fileQueue = [
-                        getFilePath('R', recordingsBase.r1), getFilePath('R', recordingsBase.r2), getFilePath('R', recordingsBase.r3),
-                        getFilePath('N', legalBaseName1), getFilePath('N', legalBaseName2),
-                        getFilePath('R', recordingsBase.r4), getFilePath('N', newBaseName1), getFilePath('N', newBaseName2),
-                        getFilePath('R', recordingsBase.r5), getFilePath('N', newBaseName1), getFilePath('N', newBaseName2),
-                        getFilePath('R', recordingsBase.r6), getFilePath('N', legalBaseName1), getFilePath('N', legalBaseName2),
-                        getFilePath('R', recordingsBase.r7)
-                    ].filter(path => path !== null); // Filter out null paths from invalid base names
-                 } catch (error) {
-                      console.error("Error during getFilePath calls:", error);
-                      statusCurrentTrack.textContent = "Error: Could not construct file paths.";
-                      resetPlayback();
-                      return;
-                 }
-                currentTrackIndex = -1; // Reset index
-                console.log('Constructed FULL PATH File Queue:', fileQueue);
+                     mainAnnouncementQueue = [
+                        getVoiceFilePath('R', recordingsBase.r1), getVoiceFilePath('R', recordingsBase.r2), getVoiceFilePath('R', recordingsBase.r3),
+                        getVoiceFilePath('N', legalBaseName1), getVoiceFilePath('N', legalBaseName2),
+                        getVoiceFilePath('R', recordingsBase.r4), getVoiceFilePath('N', newBaseName1), getVoiceFilePath('N', newBaseName2),
+                        getVoiceFilePath('R', recordingsBase.r5), getVoiceFilePath('N', newBaseName1), getVoiceFilePath('N', newBaseName2),
+                        getVoiceFilePath('R', recordingsBase.r6), getVoiceFilePath('N', legalBaseName1), getVoiceFilePath('N', legalBaseName2),
+                        getVoiceFilePath('R', recordingsBase.r7)
+                    ].filter(path => path !== null); // Filter out null paths if getVoiceFilePath had errors
+                 } catch (error) { console.error("Error constructing main queue:", error); statusCurrentTrack.textContent = "Error: Could not construct paths."; resetPlayback(); return; }
+                 console.log("Main Announcement Queue (Full Paths):", mainAnnouncementQueue);
+                 // --- End Construct Main Queue ---
 
-                // --- Start Playback Sequence ---
+
+                // --- 4. Combine Queues ---
+                // Chime files use base names (relative paths), main files use voice paths (relative paths)
+                fileQueue = [...chimeQueue, ...mainAnnouncementQueue];
+                currentTrackIndex = -1;
+                console.log('Constructed Combined File Queue:', fileQueue);
+                // --- End Combine Queues ---
+
+                // --- 5. Start Playback Sequence ---
                 if (fileQueue.length > 0) {
                     statusCurrentTrack.textContent = `Starting...`;
-                    const firstFile = fileQueue[0];
+                    const firstFile = fileQueue[0]; // Could be chime or R1 (relative path)
                     if (firstFile) {
                         console.log(`Attempting to set playerA.src = "${firstFile}"`);
                         playerA.src = firstFile; playerA.load();
@@ -483,4 +494,3 @@
 
 </body>
 </html>
-
