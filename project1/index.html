@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Announcement Player (Voice Packs)</title>
+    <title>V1 Announcement Player (Voice Packs)</title>
 
     <style>
         /* Basic page styling */
@@ -142,7 +142,7 @@
     <h1>Announcement Player</h1>
 
      <div class="important-note">
-        <strong>Note:</strong> This version runs directly from local files (or hosting). Small pauses between recordings may still occur. Use the controls below to select voice packs and specific names. Audio files must be in subdirectories named '1' and '2'.
+        <strong>Note:</strong> This version uses absolute paths (starting with /project1/). Small pauses between recordings may still occur. Audio files must be in subdirectories named '1' and '2' inside 'project1'.
     </div>
 
     <div class="controls">
@@ -262,17 +262,35 @@
                 return shuffled.slice(0, count);
             }
 
-             /** Gets the correct full path for a file based on voice selections. */
+             /**
+              * Gets the correct ABSOLUTE path for a file based on voice selections.
+              * @param {string} type - 'R' for R recordings, 'N' for N recordings.
+              * @param {string} baseName - The base filename (e.g., "R1.mp3", "N5.mp3").
+              * @returns {string} The absolute path (e.g., "/project1/1/R1.mp3").
+              */
              function getFilePath(type, baseName) {
-                const masterPrefix = masterVoiceSelect.value + '/'; // e.g., "1/"
-                const rPrefixValue = rVoiceSelect.value; // "Master", "1", or "2"
-                const nPrefixValue = nVoiceSelect.value; // "Master", "1", or "2"
-                let finalPrefix = masterPrefix; // Default to master
-                if (type === 'R' && rPrefixValue !== 'Master') { finalPrefix = rPrefixValue + '/'; }
-                 else if (type === 'N' && nPrefixValue !== 'Master') { finalPrefix = nPrefixValue + '/'; }
-                // *** DEBUG LOG: Log the generated path ***
-                const fullPath = finalPrefix + baseName;
-                // console.log(`getFilePath(type=${type}, baseName=${baseName}) -> ${fullPath}`); // Optional: very verbose log
+                const masterVoiceDir = masterVoiceSelect.value; // "1" or "2"
+                const rVoiceDir = rVoiceSelect.value; // "Master", "1", or "2"
+                const nVoiceDir = nVoiceSelect.value; // "Master", "1", or "2"
+
+                let finalVoiceDir = masterVoiceDir; // Default to master voice directory
+
+                // Override with specific selection if not 'Master'
+                if (type === 'R' && rVoiceDir !== 'Master') {
+                    finalVoiceDir = rVoiceDir;
+                } else if (type === 'N' && nVoiceDir !== 'Master') {
+                    finalVoiceDir = nVoiceDir;
+                }
+
+                // *** Construct ABSOLUTE path from the root ***
+                // Assumes your site structure is domain.com/project1/index.html etc.
+                // Adjust "/project1/" if your base path is different.
+                const basePath = "/project1/";
+                const voicePath = finalVoiceDir + "/"; // e.g. "1/" or "2/"
+                const fullPath = basePath + voicePath + baseName;
+
+                // Log the generated path for debugging
+                // console.log(`getFilePath(type=${type}, baseName=${baseName}) -> ${fullPath}`); // Optional: verbose log
                 return fullPath;
              }
 
@@ -289,8 +307,7 @@
              // --- End Stop and Reset Function ---
 
 
-            // --- Core Playback Logic ---
-            /** Plays the next track and preloads the one after. */
+            // --- Core Playback Logic (No changes needed here) ---
             function playNextTrack() {
                 currentTrackIndex++;
                 console.log(`Attempting to play track index: ${currentTrackIndex}`);
@@ -302,19 +319,17 @@
                 if (!fileToPlay) { console.error(`Error: File path at index ${currentTrackIndex} is invalid.`); handleError(new Error(`Invalid file path at index ${currentTrackIndex}`), playerToPlayNow === playerA ? 'A' : 'B'); return; }
                 const shortNameToPlay = fileToPlay.split('/').pop();
 
-                // --- Preload ---
+                // Preload
                 const preloadTrackIndex = currentTrackIndex + 1;
                 if (preloadTrackIndex < fileQueue.length) {
                     const fileToPreload = fileQueue[preloadTrackIndex];
                     if (fileToPreload) {
                         const shortPreloadName = fileToPreload.split('/').pop();
-                        // *** ADD LOGGING ***
                         console.log(`Attempting to set player ${playerToPreload === playerA ? 'A' : 'B'}.src = "${fileToPreload}" for preload`);
-                        playerToPreload.src = fileToPreload;
-                        playerToPreload.load();
+                        playerToPreload.src = fileToPreload; playerToPreload.load();
                         console.log(`Preloading index ${preloadTrackIndex} (${shortPreloadName}) on player ${playerToPreload === playerA ? 'A' : 'B'}`);
                     } else {
-                         console.warn(`File path at preload index ${preloadTrackIndex} is invalid. Cannot preload.`);
+                         console.warn(`File path at preload index ${preloadTrackIndex} is invalid.`);
                          try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) { console.warn("Error clearing preload player src", e); }
                     }
                 } else {
@@ -322,37 +337,24 @@
                      try { if (!playerToPreload.paused) playerToPreload.pause(); playerToPreload.removeAttribute('src'); playerToPreload.load(); } catch(e) { console.warn("Error clearing preload player src", e); }
                 }
 
-                // --- Play ---
+                // Play
                 console.log(`Attempting: ${playerToPlayNow === playerA ? 'A' : 'B'}.play() for ${shortNameToPlay} (Path: ${fileToPlay})`);
                 statusCurrentTrack.textContent = shortNameToPlay;
                 activePlayerElement = playerToPlayNow;
 
-                /** Starts the actual playback, potentially after a delay */
                 const startPlayback = () => {
                     console.log(`Executing .play() for ${shortNameToPlay} on player ${activePlayerElement === playerA ? 'A' : 'B'}`);
                     const playPromise = activePlayerElement.play();
                     if (playPromise !== undefined) {
-                        playPromise.then(() => {
-                            console.log(`Playback started successfully for ${shortNameToPlay}.`);
-                        }).catch(error => {
-                            console.error(`Error explicitly caught from .play() promise for ${shortNameToPlay}:`, error);
-                            handleError(error, activePlayerElement === playerA ? 'A' : 'B');
-                        });
-                    } else {
-                        console.warn(".play() did not return a promise. Relying on error event.");
-                    }
+                        playPromise.then(() => { console.log(`Playback started successfully for ${shortNameToPlay}.`); })
+                        .catch(error => { console.error(`Error from .play() promise for ${shortNameToPlay}:`, error); handleError(error, activePlayerElement === playerA ? 'A' : 'B'); });
+                    } else { console.warn(".play() did not return a promise."); }
                 };
 
-                // Delay only for first track (to potentially avoid "interrupted by pause" error)
-                if (currentTrackIndex === 0) {
-                    console.log("Applying small delay before playing first track...");
-                    setTimeout(startPlayback, 50); // 50ms delay
-                } else {
-                    startPlayback(); // Play subsequent tracks immediately
-                }
+                if (currentTrackIndex === 0) { console.log("Applying small delay before playing first track..."); setTimeout(startPlayback, 50); }
+                else { startPlayback(); }
             }
 
-            /** Handles the 'ended' event for both audio players. */
             function handleTrackEnd(event) {
                  if (event.target === activePlayerElement) {
                      const playerName = (event.target === playerA) ? 'A' : 'B';
@@ -360,16 +362,11 @@
                      try { event.target.pause(); console.log(`Player ${playerName} explicitly paused.`); }
                      catch (e) { console.warn(`Could not pause player ${playerName}`, e); }
                      playNextTrack();
-                 } else {
-                     const inactivePlayerName = (event.target === playerA) ? 'A' : 'B';
-                     const activePlayerName = activePlayerElement ? (activePlayerElement === playerA ? 'A' : 'B') : 'None';
-                     console.warn(`'ended' event ignored for inactive player ${inactivePlayerName}. Current active: ${activePlayerName}`);
-                 }
+                 } else { /* Ignore ended event for inactive player */ }
             }
             playerA.addEventListener('ended', handleTrackEnd);
             playerB.addEventListener('ended', handleTrackEnd);
 
-             /** Handles 'error' events from the audio players. */
              function handleError(errorEvent, playerName) {
                  console.error(`Audio Error Event on Player ${playerName}:`, errorEvent);
                  let specificError = 'Unknown playback error';
@@ -378,16 +375,17 @@
                      switch (mediaError.code) {
                          case mediaError.MEDIA_ERR_ABORTED: specificError = 'Playback aborted.'; break;
                          case mediaError.MEDIA_ERR_NETWORK: specificError = 'Network error loading audio.'; break;
-                         case mediaError.MEDIA_ERR_DECODE: specificError = 'Audio decoding error (file might be corrupt).'; break;
-                         case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: specificError = 'Audio source not supported or not found.'; break; // This is likely the one
+                         case mediaError.MEDIA_ERR_DECODE: specificError = 'Audio decoding error.'; break;
+                         case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: specificError = 'Audio source not supported or not found.'; break;
                          default: specificError = `Unknown error code ${mediaError.code}.`;
                      }
                      console.error(`MediaError code: ${mediaError.code}, message: ${mediaError.message || '(no message)'}`);
                  } else if (errorEvent instanceof Error) { specificError = errorEvent.message; }
                  const errorIndex = (currentTrackIndex >= 0) ? currentTrackIndex : 0;
-                 // Try to get the intended source even if loading failed
                  const fileWithError = (errorEvent?.target?.src) || fileQueue[errorIndex] || 'Current/Starting file';
-                 statusCurrentTrack.textContent = `Error on ${fileWithError.split('/').pop()}: ${specificError} Resetting.`;
+                 // Display the error using the full path attempted, if available
+                 const displayPath = (errorEvent?.target?.src) ? errorEvent.target.src : fileWithError.split('/').pop();
+                 statusCurrentTrack.textContent = `Error on ${displayPath}: ${specificError} Resetting.`;
                  resetPlayback();
              }
              playerA.addEventListener('error', (e) => handleError(e, 'A'));
@@ -395,7 +393,7 @@
             // --- End Playback Logic ---
 
 
-            // --- Event Listener for the Play Button ---
+            // --- Event Listener for the Play Button (No changes needed here from previous version) ---
             playButton.addEventListener('click', () => {
                 if (isPlaying && playButton.disabled) { console.warn("Playback process already running."); return; }
                 resetPlayback();
@@ -404,7 +402,7 @@
                 statusCurrentTrack.textContent = 'Processing selections...';
                 statusSelectedNames.textContent = '...';
 
-                // --- Determine Required BASE Name Files ---
+                // Determine Required BASE Name Files
                 const nameSelections = nameSelects.map(s => s.value);
                 const finalBaseNameFiles = [];
                 const manualBaseNameSelections = nameSelections.filter(val => val !== 'Random');
@@ -424,11 +422,10 @@
                 console.log("Final base name files chosen for slots:", finalBaseNameFiles);
                 const legalBaseName1 = finalBaseNameFiles[0]; const legalBaseName2 = finalBaseNameFiles[1];
                 const newBaseName1 = finalBaseNameFiles[2]; const newBaseName2 = finalBaseNameFiles[3];
-                // --- End Determine Required BASE Name Files ---
 
                 statusSelectedNames.textContent = `Legal: (${legalBaseName1} + ${legalBaseName2}), New: (${newBaseName1} + ${newBaseName2})`;
 
-                // --- Construct the FULL PATH playback queue ---
+                // Construct the FULL PATH playback queue using getFilePath
                  fileQueue = [
                     getFilePath('R', recordingsBase.r1), getFilePath('R', recordingsBase.r2), getFilePath('R', recordingsBase.r3),
                     getFilePath('N', legalBaseName1), getFilePath('N', legalBaseName2),
@@ -438,48 +435,32 @@
                     getFilePath('R', recordingsBase.r7)
                 ];
                 currentTrackIndex = -1; // Reset index
-
                 console.log('Constructed FULL PATH File Queue:', fileQueue); // Log the final paths
 
-                // --- Start Playback Sequence ---
+                // Start Playback Sequence
                 if (fileQueue.length > 0) {
                     statusCurrentTrack.textContent = `Starting...`;
-
-                    // Load first track onto Player A
-                    const firstFile = fileQueue[0];
+                    const firstFile = fileQueue[0]; // Should be absolute path e.g., "/project1/1/R1.mp3"
                     if (firstFile) {
-                        // *** ADD LOGGING ***
                         console.log(`Attempting to set playerA.src = "${firstFile}"`);
-                        playerA.src = firstFile;
-                        playerA.load();
+                        playerA.src = firstFile; playerA.load();
                         console.log(`Initial load (Track 0): ${firstFile} on Player A`);
-                    } else {
-                        console.error("Cannot start playback: First file in queue is invalid."); statusCurrentTrack.textContent = "Error: Invalid first file."; resetPlayback(); return;
-                    }
+                    } else { console.error("Invalid first file."); statusCurrentTrack.textContent = "Error: Invalid first file."; resetPlayback(); return; }
 
-                    // Preload second track onto Player B
                     if (fileQueue.length > 1) {
                         const secondFile = fileQueue[1];
                         if (secondFile) {
-                             // *** ADD LOGGING ***
                             console.log(`Attempting to set playerB.src = "${secondFile}"`);
                             playerB.src = secondFile; playerB.load();
                             console.log(`Initial preload (Track 1): ${secondFile} on Player B`);
-                        } else {
-                             console.warn("Second file in queue is invalid, cannot preload on Player B."); playerB.removeAttribute('src'); playerB.load();
-                        }
-                    } else {
-                         console.log("Only one track in queue, no initial preload needed for Player B."); playerB.removeAttribute('src'); playerB.load();
-                    }
+                        } else { console.warn("Invalid second file."); playerB.removeAttribute('src'); playerB.load(); }
+                    } else { console.log("Only one track."); playerB.removeAttribute('src'); playerB.load(); }
 
-                    // Set starting state for player logic in playNextTrack
-                    activePlayerElement = playerB; // Pretend B finished, so A plays first
+                    activePlayerElement = playerB; // Pretend B finished
                     console.log("Calling playNextTrack to start sequence...");
                     playNextTrack(); // Start the sequence
 
-                } else {
-                     console.log("File queue is empty after processing selections."); statusCurrentTrack.textContent = "No files to play."; resetPlayback();
-                 }
+                } else { console.log("File queue empty."); statusCurrentTrack.textContent = "No files to play."; resetPlayback(); }
             }); // --- End Button Click Listener ---
 
         }); // End DOMContentLoaded
